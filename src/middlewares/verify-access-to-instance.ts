@@ -13,32 +13,57 @@ export const verifyAccessToInstance = createMiddleware({
 		console.log("[verifyAccessToInstance.client] Received data:", data);
 		console.log("[verifyAccessToInstance.client] Data type:", typeof data);
 		
-		// Explicitly pass data through - TanStack Start should handle it automatically,
-		// but we need to ensure it's passed correctly
+		// WORKAROUND: TanStack Start has a known bug where POST request body data
+		// doesn't get passed through middleware correctly. We pass data both as
+		// the data parameter AND in sendContext as a workaround.
+		// See: Known issue with TanStack Start middleware + POST + body
+		const sendContext: {
+			sessionToken: string;
+			projectId: string | undefined;
+			_data?: unknown;
+		} = {
+			sessionToken,
+			projectId: config.projectId,
+		};
+		
+		// Pass data in sendContext as workaround for middleware bug
+		if (data && typeof data === "object") {
+			sendContext._data = data;
+		}
+		
 		return (next as any)({
-			sendContext: {
-				sessionToken,
-				projectId: config.projectId,
-			},
-			data, // Explicitly pass data through
+			sendContext,
+			data, // Also pass as data parameter (may be lost due to bug)
 		});
 	})
 	.server(async ({ next, context, data }) => {
-		const contextWithToken = context as unknown as { sessionToken: string; projectId?: string };
+		const contextWithToken = context as unknown as { 
+			sessionToken: string; 
+			projectId?: string;
+			_data?: unknown; // Workaround: data passed via sendContext
+		};
 		if (!contextWithToken || !contextWithToken.sessionToken) {
 			throw new Error("Context with sessionToken is required");
 		}
 		const res = await verify(contextWithToken.sessionToken);
 
-		// Debug logging to see what data we receive
-		console.log("[verifyAccessToInstance.server] Received data:", data);
-		console.log("[verifyAccessToInstance.server] Data type:", typeof data);
-		console.log("[verifyAccessToInstance.server] Data is null?", data === null);
-		console.log("[verifyAccessToInstance.server] Data is undefined?", data === undefined);
+		// WORKAROUND: TanStack Start has a known bug where POST request body data
+		// doesn't get passed through middleware correctly. We use data from sendContext
+		// (_data) as fallback if the data parameter is null/undefined.
+		let parsedData: unknown = data;
 		
-		// Explicitly pass data through - TanStack Start should handle it automatically,
-		// but in production with middleware, we need to be explicit
-		// Using type assertion to bypass TypeScript type checking while maintaining runtime correctness
+		if ((parsedData === null || parsedData === undefined) && contextWithToken._data !== undefined) {
+			parsedData = contextWithToken._data;
+			console.log("[verifyAccessToInstance.server] Using data from sendContext workaround:", parsedData);
+		}
+
+		// Debug logging
+		console.log("[verifyAccessToInstance.server] Received data:", data);
+		console.log("[verifyAccessToInstance.server] Parsed data:", parsedData);
+		console.log("[verifyAccessToInstance.server] Data type:", typeof parsedData);
+		console.log("[verifyAccessToInstance.server] Data is null?", parsedData === null);
+		
+		// Pass the parsed data through to the handler
 		return (next as any)({
 			context: {
 				extensionInstanceId: res.extensionInstanceId,
@@ -47,6 +72,6 @@ export const verifyAccessToInstance = createMiddleware({
 				contextId: res.contextId,
 				projectId: contextWithToken.projectId,
 			},
-			data, // Explicitly pass data through
+			data: parsedData, // Use data from sendContext if data parameter is null
 		});
 	});
