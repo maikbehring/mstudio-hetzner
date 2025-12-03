@@ -100,13 +100,15 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== "GET" && req.method !== "HEAD") {
       // Convert Node.js Readable stream to ReadableStream for Fetch API
       // This allows request.json() to read the body
+      // NOTE: When using a ReadableStream as body, we must set duplex: 'half'
       requestInit.body = Readable.toWeb(req);
+      requestInit.duplex = "half";
       
       // Debug logging for POST requests
       if (req.method === "POST" && req.url?.includes("serverActions")) {
         console.log("[server.mjs] POST request to serverActions");
         console.log("[server.mjs] Content-Type:", headers.get("content-type"));
-        console.log("[server.mjs] Passing body as ReadableStream");
+        console.log("[server.mjs] Passing body as ReadableStream with duplex: half");
       }
     }
     
