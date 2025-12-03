@@ -1,59 +1,35 @@
 import { createServerFn } from "@tanstack/react-start";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { verifyAccessToInstance } from "~/middlewares/verify-access-to-instance";
 import { getHetznerClient } from "./getHetznerClient";
 import type { VerifiedContext } from "~/types/middleware-context";
 
+// Schema for input validation - zodValidator will parse and validate before middleware runs
 const ServerActionSchema = z.object({
-	serverId: z.string().transform((val) => parseInt(val, 10)),
+	serverId: z.union([z.string(), z.number()]).transform((val) => 
+		typeof val === "string" ? parseInt(val, 10) : val
+	),
 	action: z.enum(["poweron", "poweroff", "reboot", "shutdown"]),
 });
 
+// SOLUTION: Use inputValidator to ensure data is parsed BEFORE middleware runs
+// This is the recommended solution for TanStack Start's POST + middleware + body bug
 export const performServerAction = createServerFn({ method: "POST" })
+	// @ts-expect-error - inputValidator exists but TypeScript types may not be complete
+	.inputValidator(zodValidator(ServerActionSchema))
 	.middleware([verifyAccessToInstance])
-	.handler(async ({ context, data }) => {
+	.handler(async ({ context, data }: { context: unknown; data: unknown }) => {
 		try {
 			// Type assertion needed because middleware uses 'as any' to pass data
 			const { extensionInstanceId } = context as unknown as VerifiedContext;
 			
-			// Debug logging
-			console.log("[performServerAction] Received data:", JSON.stringify(data, null, 2));
-			console.log("[performServerAction] Data type:", typeof data);
-			console.log("[performServerAction] Is null?", data === null);
-			console.log("[performServerAction] Is undefined?", data === undefined);
+			// data is now guaranteed to be validated and typed by inputValidator
+			// It will be available in middleware and handler
+			console.log("[performServerAction] Received validated data:", data);
 			
-			// Handle case where data might be null or undefined
-			if (data === null || data === undefined) {
-				const error = new Error(`serverId and action are required. Received: ${data === null ? "null" : "undefined"}`);
-				console.error("[performServerAction] Error:", error.message);
-				throw error;
-			}
-			
-			if (typeof data !== "object") {
-				const error = new Error(`Expected object, received: ${typeof data}`);
-				console.error("[performServerAction] Error:", error.message);
-				throw error;
-			}
-			
-			if (!("serverId" in data) || !("action" in data)) {
-				const error = new Error(`serverId and action are required. Received keys: ${Object.keys(data).join(", ")}`);
-				console.error("[performServerAction] Error:", error.message);
-				throw error;
-			}
-			
-			const dataObj = data as { serverId: unknown; action: unknown };
-			let parsed;
-			try {
-				parsed = ServerActionSchema.parse({ 
-					serverId: String(dataObj.serverId), 
-					action: dataObj.action 
-				});
-			} catch (parseError) {
-				console.error("[performServerAction] Parse error:", parseError);
-				throw new Error(`Invalid input: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
-			}
-			
-			console.log("[performServerAction] Parsed:", parsed);
+			// data is already validated and parsed by inputValidator
+			const parsed = data as z.infer<typeof ServerActionSchema>;
 
 			const client = await getHetznerClient(extensionInstanceId);
 

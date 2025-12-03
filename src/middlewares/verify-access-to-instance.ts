@@ -6,64 +6,34 @@ export const verifyAccessToInstance = createMiddleware({
 	type: "function",
 	validateClient: true,
 })
-	.client(async ({ next, data }) => {
+	.client(async ({ next }) => {
 		const sessionToken = await getSessionToken();
 		const config = await getConfig();
 
-		console.log("[verifyAccessToInstance.client] Received data:", data);
-		console.log("[verifyAccessToInstance.client] Data type:", typeof data);
-		
-		// WORKAROUND: TanStack Start has a known bug where POST request body data
-		// doesn't get passed through middleware correctly. We pass data both as
-		// the data parameter AND in sendContext as a workaround.
-		// See: Known issue with TanStack Start middleware + POST + body
-		const sendContext: {
-			sessionToken: string;
-			projectId: string | undefined;
-			_data?: unknown;
-		} = {
-			sessionToken,
-			projectId: config.projectId,
-		};
-		
-		// Pass data in sendContext as workaround for middleware bug
-		if (data && typeof data === "object") {
-			sendContext._data = data;
-		}
-		
-		return (next as any)({
-			sendContext,
-			data, // Also pass as data parameter (may be lost due to bug)
+		return next({
+			sendContext: {
+				sessionToken,
+				projectId: config.projectId,
+			},
 		});
 	})
 	.server(async ({ next, context, data }) => {
 		const contextWithToken = context as unknown as { 
 			sessionToken: string; 
 			projectId?: string;
-			_data?: unknown; // Workaround: data passed via sendContext
 		};
 		if (!contextWithToken || !contextWithToken.sessionToken) {
 			throw new Error("Context with sessionToken is required");
 		}
 		const res = await verify(contextWithToken.sessionToken);
 
-		// WORKAROUND: TanStack Start has a known bug where POST request body data
-		// doesn't get passed through middleware correctly. We use data from sendContext
-		// (_data) as fallback if the data parameter is null/undefined.
-		let parsedData: unknown = data;
-		
-		if ((parsedData === null || parsedData === undefined) && contextWithToken._data !== undefined) {
-			parsedData = contextWithToken._data;
-			console.log("[verifyAccessToInstance.server] Using data from sendContext workaround:", parsedData);
-		}
-
-		// Debug logging
+		// With inputValidator, data should now be available in middleware
+		// inputValidator parses the body BEFORE middleware runs
 		console.log("[verifyAccessToInstance.server] Received data:", data);
-		console.log("[verifyAccessToInstance.server] Parsed data:", parsedData);
-		console.log("[verifyAccessToInstance.server] Data type:", typeof parsedData);
-		console.log("[verifyAccessToInstance.server] Data is null?", parsedData === null);
+		console.log("[verifyAccessToInstance.server] Data type:", typeof data);
+		console.log("[verifyAccessToInstance.server] Data is null?", data === null);
 		
-		// Pass the parsed data through to the handler
+		// Pass data through - inputValidator ensures it's parsed before middleware
 		return (next as any)({
 			context: {
 				extensionInstanceId: res.extensionInstanceId,
@@ -72,6 +42,6 @@ export const verifyAccessToInstance = createMiddleware({
 				contextId: res.contextId,
 				projectId: contextWithToken.projectId,
 			},
-			data: parsedData, // Use data from sendContext if data parameter is null
+			data, // Data should now be available thanks to inputValidator
 		});
 	});
