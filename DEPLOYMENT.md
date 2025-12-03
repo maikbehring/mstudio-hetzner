@@ -249,3 +249,4 @@ Wenn du einen Fehler wie "Port already in use" oder "EADDRINUSE" siehst:
 - [Vite Dokumentation](https://vitejs.dev/)
 - [Prisma Deployment Guide](https://www.prisma.io/docs/guides/deployment)
 
+
