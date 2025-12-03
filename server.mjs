@@ -88,6 +88,8 @@ const server = http.createServer(async (req, res) => {
     }
     
     // Read request body if present
+    // IMPORTANT: We need to read the body BEFORE creating the Request object
+    // because once we create the Request, the body stream is consumed
     let body = undefined;
     if (req.method !== "GET" && req.method !== "HEAD") {
       const chunks = [];
@@ -96,6 +98,23 @@ const server = http.createServer(async (req, res) => {
       }
       if (chunks.length > 0) {
         body = Buffer.concat(chunks);
+      }
+    }
+    
+    // If no body was read but Content-Length header indicates body exists, try to read it
+    if (!body && req.headers["content-length"] && parseInt(req.headers["content-length"], 10) > 0) {
+      // Body might have already been consumed, but try anyway
+      const chunks = [];
+      try {
+        for await (const chunk of req) {
+          chunks.push(chunk);
+        }
+        if (chunks.length > 0) {
+          body = Buffer.concat(chunks);
+        }
+      } catch (error) {
+        // Body already consumed, that's okay
+        console.log("[server.mjs] Body already consumed or error reading:", error.message);
       }
     }
     

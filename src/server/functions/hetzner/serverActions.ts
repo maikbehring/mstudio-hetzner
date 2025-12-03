@@ -10,7 +10,7 @@ const ServerActionSchema = z.object({
 		typeof val === "string" ? parseInt(val, 10) : val
 	),
 	action: z.enum(["poweron", "poweroff", "reboot", "shutdown"]),
-});
+}).passthrough(); // Allow additional properties
 
 // SOLUTION: Use inputValidator in TanStack Start v1.139.14+
 // inputValidator parses body BEFORE middleware runs
