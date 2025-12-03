@@ -22,15 +22,15 @@ export const performServerAction = createServerFn({ method: "POST" })
 			// Type assertion needed because middleware uses 'as any' to pass data
 			const { extensionInstanceId } = context as unknown as VerifiedContext;
 			
+			// data is already validated and parsed by inputValidator
+			const parsed = data as z.infer<typeof ServerActionSchema>;
+			
 			// data is now guaranteed to be validated and typed by inputValidator
 			// It will be available in middleware and handler
 			// Security: Only log in development, don't log full data
 			if (process.env.NODE_ENV === "development") {
 				console.log("[performServerAction] Action:", parsed.action, "ServerId:", parsed.serverId);
 			}
-			
-			// data is already validated and parsed by inputValidator
-			const parsed = data as z.infer<typeof ServerActionSchema>;
 
 			const client = await getHetznerClient(extensionInstanceId);
 
