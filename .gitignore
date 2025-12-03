@@ -41,3 +41,6 @@ prisma/migrations/.migrate
 
 # Developer Documentation (not for git)
 DEVELOPER.md
+SECURITY_AUDIT.md
+POST_REQUEST_FIX.md
+TANSTACK_START_MIGRATION.md
