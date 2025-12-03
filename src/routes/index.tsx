@@ -61,10 +61,10 @@ function DashboardComponent() {
 			console.log("[Dashboard] Data JSON:", JSON.stringify(dataToSend));
 			
 			try {
-				// Call exactly like setHetznerApiToken - use 'as any' to bypass TypeScript issues
-				// TanStack Start server functions need data passed directly
-				// The middleware will handle authentication
-				const result = await (performServerAction as any)(dataToSend);
+				// TanStack Start server functions serialize the argument as JSON body
+				// The inputValidator will extract and validate the data from request.json()
+				// We pass the data directly - TanStack Start will serialize it correctly
+				const result = await performServerAction(dataToSend);
 				console.log("[Dashboard] performServerAction result:", result);
 				return result;
 			} catch (error) {
