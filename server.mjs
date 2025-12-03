@@ -87,28 +87,51 @@ const server = http.createServer(async (req, res) => {
       }
     }
     
-    // Create Request with body stream
-    // IMPORTANT: TanStack Start calls request.json() to extract the body
-    // We must pass the body as a ReadableStream so request.json() can read it
+    // Read request body if present
+    // IMPORTANT: We need to read the body BEFORE creating the Request object
+    // because once we create the Request, the body stream is consumed
+    let body = undefined;
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      const chunks = [];
+      for await (const chunk of req) {
+        chunks.push(chunk);
+      }
+      if (chunks.length > 0) {
+        body = Buffer.concat(chunks);
+      }
+    }
+    
+    // Debug logging for POST requests
+    if (req.method === "POST" && req.url?.includes("serverActions")) {
+      console.log("[server.mjs] POST request to serverActions");
+      console.log("[server.mjs] Body length:", body?.length || 0);
+      console.log("[server.mjs] Body preview:", body ? body.toString("utf-8").substring(0, 200) : "none");
+      console.log("[server.mjs] Content-Type:", headers.get("content-type"));
+    }
+    
+    // Create Request with body
+    // TanStack Start calls request.json() to extract the body (line 5523)
+    // We need to pass the body as a ReadableStream so request.json() can read it
+    const contentType = headers.get("content-type") || "";
     const requestInit = {
       method: req.method,
       headers,
     };
     
-    // For POST/PUT/PATCH requests, pass the request stream as body
-    // TanStack Start will call request.json() to parse it
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      // Convert Node.js Readable stream to ReadableStream for Fetch API
-      // This allows request.json() to read the body
-      // NOTE: When using a ReadableStream as body, we must set duplex: 'half'
-      requestInit.body = Readable.toWeb(req);
+    if (body) {
+      // Create a new ReadableStream from the body buffer
+      // This allows request.json() to read the body multiple times if needed
+      const bodyStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(body);
+          controller.close();
+        }
+      });
+      requestInit.body = bodyStream;
       requestInit.duplex = "half";
       
-      // Debug logging for POST requests
       if (req.method === "POST" && req.url?.includes("serverActions")) {
-        console.log("[server.mjs] POST request to serverActions");
-        console.log("[server.mjs] Content-Type:", headers.get("content-type"));
-        console.log("[server.mjs] Passing body as ReadableStream with duplex: half");
+        console.log("[server.mjs] Created ReadableStream from body buffer");
       }
     }
     
