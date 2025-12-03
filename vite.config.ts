@@ -12,7 +12,12 @@ export default defineConfig({
     tsConfigPaths({
       projects: ["./tsconfig.json"],
     }),
-    tanstackStart(),
+    tanstackStart({
+      nitro: {
+        host: process.env.HOST || "0.0.0.0",
+        port: process.env.PORT ? parseInt(process.env.PORT, 10) : 10000,
+      },
+    }),
   ],
   resolve: {
     alias: [
