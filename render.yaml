@@ -3,7 +3,7 @@ services:
     name: mstudio-hetzner
     runtime: node
     plan: free
-    buildCommand: pnpm install && NITRO_PRESET=node-server pnpm db:generate && pnpm build && pnpm db:migrate:deploy
+    buildCommand: pnpm install && pnpm db:generate && NITRO_PRESET=node-server pnpm build && pnpm db:migrate:deploy
     startCommand: pnpm start
     envVars:
       - key: NODE_ENV

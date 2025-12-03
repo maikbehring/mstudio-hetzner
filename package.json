@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "pnpm db:generate && vite build && tsc --noEmit",
-    "start": "node dist/server/server.js",
+    "start": "node server.mjs",
     "check": "pnpm biome check .",
     "db:generate": "prisma generate",
     "db:format": "prisma format",
