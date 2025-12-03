@@ -101,28 +101,20 @@ const server = http.createServer(async (req, res) => {
       }
     }
     
-    // If no body was read but Content-Length header indicates body exists, try to read it
-    if (!body && req.headers["content-length"] && parseInt(req.headers["content-length"], 10) > 0) {
-      // Body might have already been consumed, but try anyway
-      const chunks = [];
-      try {
-        for await (const chunk of req) {
-          chunks.push(chunk);
-        }
-        if (chunks.length > 0) {
-          body = Buffer.concat(chunks);
-        }
-      } catch (error) {
-        // Body already consumed, that's okay
-        console.log("[server.mjs] Body already consumed or error reading:", error.message);
-      }
-    }
-    
-    const request = new Request(url, {
+    // Create Request with body
+    // Note: Request constructor expects body as ReadableStream, string, or FormData
+    // For JSON, we pass the Buffer directly - TanStack Start will parse it
+    const requestInit = {
       method: req.method,
       headers,
-      body,
-    });
+    };
+    
+    if (body) {
+      // Pass body as Buffer - TanStack Start's fetch handler will parse JSON
+      requestInit.body = body;
+    }
+    
+    const request = new Request(url, requestInit);
     
     const response = await serverEntry.fetch(request);
     
