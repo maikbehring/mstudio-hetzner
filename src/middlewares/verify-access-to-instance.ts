@@ -17,11 +17,15 @@ export const verifyAccessToInstance = createMiddleware({
 			},
 		});
 	})
-	.server(async ({ next, context }) => {
+	.server(async ({ next, context, data }) => {
 		const res = await verify(context.sessionToken);
 
+		// Debug logging to see what data we receive
+		console.log("[verifyAccessToInstance.server] Received data:", data);
+		console.log("[verifyAccessToInstance.server] Data type:", typeof data);
+		
 		// Don't explicitly pass data - TanStack Start handles it automatically
-		// Passing data explicitly can interfere with TanStack Start's serialization
+		// But we log it to debug why it might be null
 		return next({
 			context: {
 				extensionInstanceId: res.extensionInstanceId,

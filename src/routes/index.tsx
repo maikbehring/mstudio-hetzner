@@ -57,9 +57,10 @@ function DashboardComponent() {
 			console.log("[Dashboard] Calling performServerAction with:", { serverId: serverIdStr, action });
 			
 			try {
-				// Call exactly like in the detail page - TypeScript needs explicit cast here
-				// because TanStack Start's type inference doesn't work perfectly with middleware
-				await (performServerAction as (data: { serverId: string; action: "poweron" | "poweroff" | "reboot" | "shutdown" }) => Promise<unknown>)({ serverId: serverIdStr, action });
+				// Call exactly like setHetznerApiToken - use 'as any' to bypass TypeScript issues
+				// TanStack Start server functions need data passed directly
+				// The middleware will handle authentication
+				await (performServerAction as any)({ serverId: serverIdStr, action });
 			} catch (error) {
 				console.error("[Dashboard] Error calling performServerAction:", error);
 				throw error;
