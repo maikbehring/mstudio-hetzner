@@ -56,14 +56,23 @@ function DashboardComponent() {
 			const serverIdStr = String(serverId);
 			console.log("[Dashboard] Calling performServerAction with:", { serverId: serverIdStr, action });
 			
-			// Call exactly like in the detail page
-			await (performServerAction as any)({ serverId: serverIdStr, action });
+			try {
+				// Call exactly like in the detail page - TypeScript needs explicit cast here
+				// because TanStack Start's type inference doesn't work perfectly with middleware
+				await (performServerAction as (data: { serverId: string; action: "poweron" | "poweroff" | "reboot" | "shutdown" }) => Promise<unknown>)({ serverId: serverIdStr, action });
+			} catch (error) {
+				console.error("[Dashboard] Error calling performServerAction:", error);
+				throw error;
+			}
 		},
 		onSuccess: () => {
 			// Refetch resources after action
 			setTimeout(() => {
 				queryClient.invalidateQueries({ queryKey: ["hetznerResources"] });
 			}, 2000);
+		},
+		onError: (error) => {
+			console.error("[Dashboard] Server action mutation error:", error);
 		},
 	});
 
