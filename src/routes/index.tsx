@@ -142,7 +142,7 @@ function DashboardComponent() {
 
 			<Section>
 				<Heading level={3}>Estimated Monthly Cost</Heading>
-				<Text color="secondary">Alle Preise inkl. 19% MwSt.</Text>
+				<Text>Alle Preise inkl. 19% MwSt.</Text>
 				<Table aria-label="Kostenübersicht">
 						<TableHeader>
 							<TableColumn>Ressource</TableColumn>

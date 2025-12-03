@@ -109,8 +109,9 @@ Your extension will be available at `http://localhost:5173`
 
 #### Render
 
-A `render.yaml` blueprint is included for easy deployment on Render:
+A `render.yaml` blueprint is included for easy deployment on Render. See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
 
+**Quick Start:**
 1. Push your code to a Git repository
 2. Create a new Render Blueprint
 3. Connect your repository
@@ -118,9 +119,9 @@ A `render.yaml` blueprint is included for easy deployment on Render:
    - Create a PostgreSQL database
    - Set up the web service
    - Run migrations during build
-   - Configure environment variables
+   - Configure environment variables (including automatic PORT configuration)
 
-**Important**: The default port is configured to `10000` (Render's standard). Ensure your `vite.config.ts` uses `process.env.PORT`.
+**Important**: The `render.yaml` uses automatic port configuration via `fromService`. The `vite.config.ts` already reads `process.env.PORT` automatically.
 
 ### Post-Deployment Checklist
 
