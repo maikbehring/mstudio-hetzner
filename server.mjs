@@ -102,23 +102,22 @@ const server = http.createServer(async (req, res) => {
     }
     
     // Create Request with body
-    // TanStack Start expects the body to be readable by fetch API
-    // Convert Buffer to string if Content-Type is JSON
+    // TanStack Start's inputValidator expects the body to be readable
+    // We need to pass it as a ReadableStream or string
     const contentType = headers.get("content-type") || "";
-    let requestBody = body;
-    
-    if (body && contentType.includes("application/json")) {
-      // Convert Buffer to string for JSON content
-      requestBody = body.toString("utf-8");
-    }
-    
     const requestInit = {
       method: req.method,
       headers,
     };
     
-    if (requestBody) {
-      requestInit.body = requestBody;
+    if (body) {
+      if (contentType.includes("application/json")) {
+        // For JSON, pass as string - TanStack Start will parse it
+        requestInit.body = body.toString("utf-8");
+      } else {
+        // For other content types, pass as ReadableStream
+        requestInit.body = Readable.toWeb(Readable.from([body]));
+      }
     }
     
     const request = new Request(url, requestInit);
