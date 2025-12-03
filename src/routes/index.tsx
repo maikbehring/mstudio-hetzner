@@ -54,15 +54,25 @@ function DashboardComponent() {
 		mutationFn: async ({ serverId, action }: { serverId: number; action: "poweron" | "poweroff" | "reboot" | "shutdown" }) => {
 			// Convert serverId to string, matching the detail page pattern exactly
 			const serverIdStr = String(serverId);
-			console.log("[Dashboard] Calling performServerAction with:", { serverId: serverIdStr, action });
+			const dataToSend = { serverId: serverIdStr, action };
+			console.log("[Dashboard] Calling performServerAction with:", dataToSend);
+			console.log("[Dashboard] Data type:", typeof dataToSend);
+			console.log("[Dashboard] Data keys:", Object.keys(dataToSend));
+			console.log("[Dashboard] Data JSON:", JSON.stringify(dataToSend));
 			
 			try {
 				// Call exactly like setHetznerApiToken - use 'as any' to bypass TypeScript issues
 				// TanStack Start server functions need data passed directly
 				// The middleware will handle authentication
-				await (performServerAction as any)({ serverId: serverIdStr, action });
+				const result = await (performServerAction as any)(dataToSend);
+				console.log("[Dashboard] performServerAction result:", result);
+				return result;
 			} catch (error) {
 				console.error("[Dashboard] Error calling performServerAction:", error);
+				console.error("[Dashboard] Error details:", {
+					message: error instanceof Error ? error.message : String(error),
+					stack: error instanceof Error ? error.stack : undefined,
+				});
 				throw error;
 			}
 		},
