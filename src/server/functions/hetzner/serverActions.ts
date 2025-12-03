@@ -8,7 +8,7 @@ const ServerActionSchema = z.object({
 	action: z.enum(["poweron", "poweroff", "reboot", "shutdown"]),
 });
 
-export const performServerAction = createServerFn({ method: "POST" })
+export const performServerAction = createServerFn()
 	.middleware([verifyAccessToInstance])
 	.handler(async ({ context, data }) => {
 		try {
