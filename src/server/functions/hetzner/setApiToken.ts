@@ -11,7 +11,7 @@ const SetApiTokenSchema = z.object({
 
 export const setHetznerApiToken = createServerFn({ method: "POST" })
 	.middleware([verifyAccessToInstance])
-	.handler(async ({ context, data }) => {
+	.handler(async ({ context, data }: { context: unknown; data: unknown }) => {
 		const { extensionInstanceId } = context as unknown as VerifiedContext;
 		
 		// Security: Mask sensitive data in logs
@@ -23,7 +23,7 @@ export const setHetznerApiToken = createServerFn({ method: "POST" })
 			console.log("[setHetznerApiToken] Data type:", typeof data);
 			console.log("[setHetznerApiToken] Is object?", typeof data === "object");
 			if (data && typeof data === "object" && "apiToken" in data) {
-				const token = String(data.apiToken);
+				const token = String((data as { apiToken: unknown }).apiToken);
 				console.log("[setHetznerApiToken] Token (masked):", maskToken(token));
 			}
 		}
