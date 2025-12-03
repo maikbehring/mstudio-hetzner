@@ -160,49 +160,6 @@ function DashboardComponent() {
 			</Section>
 
 			<Section>
-				<Heading level={3}>Estimated Monthly Cost</Heading>
-				<Text>Alle Preise inkl. 19% MwSt.</Text>
-				<Table aria-label="Kostenübersicht">
-						<TableHeader>
-							<TableColumn>Ressource</TableColumn>
-							<TableColumn horizontalAlign="end">Kosten</TableColumn>
-						</TableHeader>
-						<TableBody>
-							{servers.length > 0 && (
-								<TableRow>
-									<TableCell>Server ({servers.length})</TableCell>
-									<TableCell horizontalAlign="end">
-										{serverCosts.toFixed(2)} €
-									</TableCell>
-								</TableRow>
-							)}
-							{volumes.length > 0 && (
-								<TableRow>
-									<TableCell>Volumes ({volumes.length})</TableCell>
-									<TableCell horizontalAlign="end">
-										{volumeCosts.toFixed(2)} €
-									</TableCell>
-								</TableRow>
-							)}
-							{floatingIps.length > 0 && (
-								<TableRow>
-									<TableCell>Floating IPs ({floatingIps.length})</TableCell>
-									<TableCell horizontalAlign="end">
-										{floatingIpCosts.toFixed(2)} €
-									</TableCell>
-								</TableRow>
-							)}
-							<TableFooterRow>
-								<TableCell>Gesamtpreis</TableCell>
-								<TableCell horizontalAlign="end">
-									<strong>{estimatedMonthlyCost.toFixed(2)} €</strong>
-								</TableCell>
-						</TableFooterRow>
-					</TableBody>
-				</Table>
-			</Section>
-
-			<Section>
 				<Heading>Server ({servers.length})</Heading>
 				<Text>
 					Total: {servers.length} | Running: {runningServers} | Stopped: {stoppedServers}
@@ -353,6 +310,49 @@ function DashboardComponent() {
 								</TableCell>
 							</TableRow>
 						)}
+					</TableBody>
+				</Table>
+			</Section>
+
+			<Section>
+				<Heading level={3}>Estimated Monthly Cost</Heading>
+				<Text>Alle Preise inkl. 19% MwSt.</Text>
+				<Table aria-label="Kostenübersicht">
+						<TableHeader>
+							<TableColumn>Ressource</TableColumn>
+							<TableColumn horizontalAlign="end">Kosten</TableColumn>
+						</TableHeader>
+						<TableBody>
+							{servers.length > 0 && (
+								<TableRow>
+									<TableCell>Server ({servers.length})</TableCell>
+									<TableCell horizontalAlign="end">
+										{serverCosts.toFixed(2)} €
+									</TableCell>
+								</TableRow>
+							)}
+							{volumes.length > 0 && (
+								<TableRow>
+									<TableCell>Volumes ({volumes.length})</TableCell>
+									<TableCell horizontalAlign="end">
+										{volumeCosts.toFixed(2)} €
+									</TableCell>
+								</TableRow>
+							)}
+							{floatingIps.length > 0 && (
+								<TableRow>
+									<TableCell>Floating IPs ({floatingIps.length})</TableCell>
+									<TableCell horizontalAlign="end">
+										{floatingIpCosts.toFixed(2)} €
+									</TableCell>
+								</TableRow>
+							)}
+							<TableFooterRow>
+								<TableCell>Gesamtpreis</TableCell>
+								<TableCell horizontalAlign="end">
+									<strong>{estimatedMonthlyCost.toFixed(2)} €</strong>
+								</TableCell>
+						</TableFooterRow>
 					</TableBody>
 				</Table>
 			</Section>
