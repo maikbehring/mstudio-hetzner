@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { verifyAccessToInstance } from "~/middlewares/verify-access-to-instance";
 import { getHetznerClient } from "./getHetznerClient";
@@ -11,53 +12,22 @@ const ServerActionSchema = z.object({
 	action: z.enum(["poweron", "poweroff", "reboot", "shutdown"]),
 });
 
-// WORKAROUND: TanStack Start v1.131.48 doesn't support inputValidator
-// We use the sendContext workaround to pass data through middleware
+// SOLUTION: Use inputValidator in TanStack Start v1.139.14+
+// inputValidator parses body BEFORE middleware runs
 export const performServerAction = createServerFn({ method: "POST" })
+	.inputValidator(zodValidator(ServerActionSchema))
 	.middleware([verifyAccessToInstance])
 	.handler(async ({ context, data }: { context: unknown; data: unknown }) => {
 		try {
 			// Type assertion needed because middleware uses 'as any' to pass data
 			const { extensionInstanceId } = context as unknown as VerifiedContext;
 			
-			// Debug logging
-			console.log("[performServerAction] Received data:", JSON.stringify(data, null, 2));
-			console.log("[performServerAction] Data type:", typeof data);
-			console.log("[performServerAction] Is null?", data === null);
-			console.log("[performServerAction] Is undefined?", data === undefined);
+			// data is now guaranteed to be validated and typed by inputValidator
+			// It will be available in middleware and handler
+			console.log("[performServerAction] Received validated data:", data);
 			
-			// Handle case where data might be null or undefined
-			if (data === null || data === undefined) {
-				const error = new Error(`serverId and action are required. Received: ${data === null ? "null" : "undefined"}`);
-				console.error("[performServerAction] Error:", error.message);
-				throw error;
-			}
-			
-			if (typeof data !== "object") {
-				const error = new Error(`Expected object, received: ${typeof data}`);
-				console.error("[performServerAction] Error:", error.message);
-				throw error;
-			}
-			
-			if (!("serverId" in data) || !("action" in data)) {
-				const error = new Error(`serverId and action are required. Received keys: ${Object.keys(data).join(", ")}`);
-				console.error("[performServerAction] Error:", error.message);
-				throw error;
-			}
-			
-			const dataObj = data as { serverId: unknown; action: unknown };
-			let parsed;
-			try {
-				parsed = ServerActionSchema.parse({ 
-					serverId: String(dataObj.serverId), 
-					action: dataObj.action 
-				});
-			} catch (parseError) {
-				console.error("[performServerAction] Parse error:", parseError);
-				throw new Error(`Invalid input: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
-			}
-			
-			console.log("[performServerAction] Parsed:", parsed);
+			// data is already validated and parsed by inputValidator
+			const parsed = data as z.infer<typeof ServerActionSchema>;
 
 			const client = await getHetznerClient(extensionInstanceId);
 
