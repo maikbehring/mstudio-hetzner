@@ -455,6 +455,19 @@ export function getRouter() {
 }
 ```
 
+**Wichtig:** Falls der Fehler nach dem Update weiterhin auftritt:
+1. **Build-Cache löschen:** Auf Render.com kann es sein, dass der Build-Cache veraltet ist. Versuche einen "Clear Build Cache" auf Render.
+2. **Lokalen Build prüfen:** Führe `pnpm build` lokal aus und prüfe, ob `dist/server/assets/router-*.js` die `getRouter` Funktion enthält:
+   ```bash
+   cat dist/server/assets/router-*.js | grep getRouter
+   ```
+3. **Git Commit prüfen:** Stelle sicher, dass die Änderungen committed und gepusht wurden:
+   ```bash
+   git log --oneline -5
+   git push
+   ```
+4. **Render Build-Logs prüfen:** Schaue in die Render Build-Logs, ob der Build wirklich die neueste Version verwendet.
+
 ---
 
 ### Problem: POST Request Body ist null/undefined
