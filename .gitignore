@@ -38,3 +38,6 @@ logs/
 
 # Prisma
 prisma/migrations/.migrate
+
+# Developer Documentation (not for git)
+DEVELOPER.md

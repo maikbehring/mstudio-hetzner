@@ -269,6 +269,11 @@ The extension integrates with mittwald using:
 - **Code Quality**: Biome (linting & formatting)
 - **Testing**: Vitest
 - **API Client**: Custom Hetzner Cloud API client with Zod validation
+- **Input Validation**: `@tanstack/zod-adapter` for POST requests with middleware
+
+### Important: TanStack Start POST + Middleware
+
+⚠️ **Note**: When using POST requests with middleware in TanStack Start, you must use `inputValidator` to ensure the request body is parsed before middleware runs. See `DEVELOPER.md` (local file, not in git) for detailed documentation on this known issue and solution.
 
 ## Security
 
