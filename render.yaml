@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: mstudio-hetzner
+    runtime: node
+    plan: free
+    buildCommand: pnpm install && pnpm db:generate && pnpm build && pnpm db:migrate:deploy
+    startCommand: pnpm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mstudio-hetzner-db
+          property: connectionString
+      - key: PRISMA_FIELD_ENCRYPTION_KEY
+        sync: false
+      - key: EXTENSION_ID
+        sync: false
+      - key: EXTENSION_SECRET
+        sync: false
+      - key: HETZNER_API_TOKEN
+        sync: false
+        optional: true
+
+databases:
+  - name: mstudio-hetzner-db
+    plan: free
+    databaseName: mstudio_hetzner
+    user: mstudio_hetzner_user
+

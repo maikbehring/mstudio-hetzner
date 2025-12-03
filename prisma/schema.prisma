@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ExtensionInstance {
+  id          String    @id
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  contextId   String    @db.Uuid
+  active      Boolean   @default(true)
+  secret      String /// @encrypted
+  
+  hetznerApiToken HetznerApiToken?
+  resourceAssignments HetznerResourceAssignment[]
+  resourceNotes HetznerResourceNote[]
+}
+
+model HetznerApiToken {
+  id                  String   @id @default(uuid())
+  extensionInstanceId String   @unique
+  extensionInstance   ExtensionInstance @relation(fields: [extensionInstanceId], references: [id], onDelete: Cascade)
+  apiToken            String   /// @encrypted
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model HetznerResourceAssignment {
+  id                  String   @id @default(uuid())
+  extensionInstanceId String
+  extensionInstance   ExtensionInstance @relation(fields: [extensionInstanceId], references: [id], onDelete: Cascade)
+  resourceType        String   // "server", "volume", "floating_ip", "primary_ip", "load_balancer", "network", "firewall"
+  resourceId          String   // Hetzner resource ID
+  resourceName        String?  // Optional name for display
+  mittwaldProjectId   String?  // mittwald project ID (if assigned to project)
+  mittwaldCustomerId  String?  // mittwald customer ID (if assigned to customer)
+  tags                String[] // Custom tags for organization
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  @@unique([extensionInstanceId, resourceType, resourceId])
+  @@index([extensionInstanceId, resourceType])
+  @@index([mittwaldProjectId])
+  @@index([mittwaldCustomerId])
+}
+
+model HetznerResourceNote {
+  id                  String   @id @default(uuid())
+  extensionInstanceId String
+  extensionInstance   ExtensionInstance @relation(fields: [extensionInstanceId], references: [id], onDelete: Cascade)
+  resourceType        String   // "server", "volume", etc.
+  resourceId          String   // Hetzner resource ID
+  note                String   @db.Text
+  createdBy           String?  // User ID who created the note
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  @@unique([extensionInstanceId, resourceType, resourceId])
+  @@index([extensionInstanceId, resourceType, resourceId])
+}
