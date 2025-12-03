@@ -14,13 +14,18 @@ export const setHetznerApiToken = createServerFn({ method: "POST" })
 	.handler(async ({ context, data }) => {
 		const { extensionInstanceId } = context as unknown as VerifiedContext;
 		
-		// Debug logging
-		console.log("[setHetznerApiToken] Received data:", JSON.stringify(data, null, 2));
-		console.log("[setHetznerApiToken] Data type:", typeof data);
-		console.log("[setHetznerApiToken] Is object?", typeof data === "object");
-		if (data && typeof data === "object") {
-			console.log("[setHetznerApiToken] Data keys:", Object.keys(data));
-			console.log("[setHetznerApiToken] Has apiToken?", "apiToken" in data);
+		// Security: Mask sensitive data in logs
+		const maskToken = (token: string) => 
+			token.length > 8 ? `${token.substring(0, 4)}...${token.substring(token.length - 4)}` : "***";
+		
+		// Debug logging (only in development)
+		if (process.env.NODE_ENV === "development") {
+			console.log("[setHetznerApiToken] Data type:", typeof data);
+			console.log("[setHetznerApiToken] Is object?", typeof data === "object");
+			if (data && typeof data === "object" && "apiToken" in data) {
+				const token = String(data.apiToken);
+				console.log("[setHetznerApiToken] Token (masked):", maskToken(token));
+			}
 		}
 		
 		if (!data || typeof data !== "object" || !("apiToken" in data)) {

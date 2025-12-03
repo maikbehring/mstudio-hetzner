@@ -1,7 +1,7 @@
 import http from "node:http";
 import { Readable } from "node:stream";
 import { readFileSync, existsSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as serverModule from "./dist/server/server.js";
 
@@ -20,29 +20,40 @@ if (!serverEntry || !serverEntry.fetch) {
   throw new Error("Failed to load server module - fetch function not found");
 }
 
-// Serve static assets
+// Security: Maximum body size (1MB)
+const MAX_BODY_SIZE = 1024 * 1024;
+
+// Security: Allowed directories for static assets
+const ALLOWED_DIRS = [
+  resolve(__dirname, "dist", "client", "assets"),
+  resolve(__dirname, "dist", "client"),
+  resolve(__dirname, "dist"),
+];
+
+// Serve static assets with path traversal protection
 function serveStaticFile(filePath) {
   try {
-    // Try dist/client/assets first (client assets)
-    let fullPath = join(__dirname, "dist", "client", filePath);
-    if (existsSync(fullPath)) {
-      return readFileSync(fullPath);
-    }
+    // Security: Normalize path to prevent directory traversal
+    // Remove any leading slashes and normalize the path
+    const normalizedPath = filePath.replace(/^\/+/, "").replace(/\.\./g, "");
     
-    // Try dist/client (root client files)
-    fullPath = join(__dirname, "dist", "client", filePath);
-    if (existsSync(fullPath)) {
-      return readFileSync(fullPath);
-    }
-    
-    // Try dist (root dist files)
-    fullPath = join(__dirname, "dist", filePath);
-    if (existsSync(fullPath)) {
-      return readFileSync(fullPath);
+    // Try allowed directories
+    for (const allowedDir of ALLOWED_DIRS) {
+      const fullPath = resolve(allowedDir, normalizedPath);
+      
+      // Security: Ensure resolved path is within allowed directory
+      if (!fullPath.startsWith(allowedDir)) {
+        continue; // Path traversal detected, skip this directory
+      }
+      
+      if (existsSync(fullPath)) {
+        return readFileSync(fullPath);
+      }
     }
     
     return null;
   } catch (error) {
+    // Security: Don't expose error details
     return null;
   }
 }
@@ -90,22 +101,33 @@ const server = http.createServer(async (req, res) => {
     // Read request body if present
     // IMPORTANT: We need to read the body BEFORE creating the Request object
     // because once we create the Request, the body stream is consumed
+    // Security: Enforce body size limit to prevent DoS
     let body = undefined;
     if (req.method !== "GET" && req.method !== "HEAD") {
       const chunks = [];
+      let totalSize = 0;
+      
       for await (const chunk of req) {
+        totalSize += chunk.length;
+        if (totalSize > MAX_BODY_SIZE) {
+          res.statusCode = 413;
+          res.setHeader("Content-Type", "text/plain");
+          res.end("Request Entity Too Large");
+          return;
+        }
         chunks.push(chunk);
       }
+      
       if (chunks.length > 0) {
         body = Buffer.concat(chunks);
       }
     }
     
-    // Debug logging for POST requests
-    if (req.method === "POST" && req.url?.includes("serverActions")) {
+    // Security: Only log in development, and mask sensitive data
+    if (process.env.NODE_ENV === "development" && req.method === "POST" && req.url?.includes("serverActions")) {
       console.log("[server.mjs] POST request to serverActions");
       console.log("[server.mjs] Body length:", body?.length || 0);
-      console.log("[server.mjs] Body preview:", body ? body.toString("utf-8").substring(0, 200) : "none");
+      // Don't log body content - could contain sensitive data
       console.log("[server.mjs] Content-Type:", headers.get("content-type"));
     }
     
