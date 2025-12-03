@@ -1,9 +1,18 @@
 import http from "node:http";
 import { Readable } from "node:stream";
-import serverModule from "./dist/server/server.js";
+import * as serverModule from "./dist/server/server.js";
 
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 10000;
 const host = process.env.HOST || "0.0.0.0";
+
+// Get the server entry - handle both default export and named export
+const serverEntry = serverModule.default || serverModule;
+
+if (!serverEntry || !serverEntry.fetch) {
+  console.error("Server module exports:", Object.keys(serverModule));
+  console.error("Default export:", serverModule.default);
+  throw new Error("Failed to load server module - fetch function not found");
+}
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -41,7 +50,7 @@ const server = http.createServer(async (req, res) => {
       body,
     });
     
-    const response = await serverModule.default.fetch(request);
+    const response = await serverEntry.fetch(request);
     
     // Copy response headers
     response.headers.forEach((value, key) => {
