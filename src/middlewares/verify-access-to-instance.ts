@@ -17,19 +17,16 @@ export const verifyAccessToInstance = createMiddleware({
 			},
 		});
 	})
-	.server(async ({ next, context, data }) => {
+	.server(async ({ next, context }) => {
 		const res = await verify(context.sessionToken);
 
 		// Debug logging to see what data we receive
-		console.log("[verifyAccessToInstance.server] Received data:", data);
-		console.log("[verifyAccessToInstance.server] Data type:", typeof data);
-		console.log("[verifyAccessToInstance.server] Data is null?", data === null);
-		console.log("[verifyAccessToInstance.server] Data is undefined?", data === undefined);
+		// Note: data is not available in server middleware, it's passed directly to handler
+		console.log("[verifyAccessToInstance.server] Verifying session token");
 		
-		// Explicitly pass data through - TanStack Start should handle it automatically,
-		// but in production with middleware, we need to be explicit
-		// Using 'as any' to bypass TypeScript type checking
-		return (next as any)({
+		// Don't explicitly pass data - TanStack Start handles it automatically
+		// Passing data explicitly can interfere with TanStack Start's serialization
+		return next({
 			context: {
 				extensionInstanceId: res.extensionInstanceId,
 				extensionId: res.extensionId,
@@ -37,6 +34,5 @@ export const verifyAccessToInstance = createMiddleware({
 				contextId: res.contextId,
 				projectId: context.projectId,
 			},
-			data, // Explicitly pass data through
 		});
 	});
