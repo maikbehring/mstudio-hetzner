@@ -87,50 +87,27 @@ const server = http.createServer(async (req, res) => {
       }
     }
     
-    // Read request body if present
-    // IMPORTANT: We need to read the body BEFORE creating the Request object
-    // because once we create the Request, the body stream is consumed
-    let body = undefined;
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      const chunks = [];
-      for await (const chunk of req) {
-        chunks.push(chunk);
-      }
-      if (chunks.length > 0) {
-        body = Buffer.concat(chunks);
-      }
-    }
-    
-    // Debug logging for POST requests
-    if (req.method === "POST" && req.url?.includes("serverActions")) {
-      console.log("[server.mjs] POST request to serverActions");
-      console.log("[server.mjs] Body length:", body?.length || 0);
-      console.log("[server.mjs] Body preview:", body ? body.toString("utf-8").substring(0, 100) : "none");
-      console.log("[server.mjs] Content-Type:", headers.get("content-type"));
-    }
-    
-    // Create Request with body
-    // TanStack Start's inputValidator expects the body to be readable
-    // We need to pass it as a ReadableStream or string
-    const contentType = headers.get("content-type") || "";
+    // Create Request with body stream
+    // IMPORTANT: TanStack Start calls request.json() to extract the body
+    // We must pass the body as a ReadableStream so request.json() can read it
     const requestInit = {
       method: req.method,
       headers,
     };
     
-    if (body) {
-      if (contentType.includes("application/json")) {
-        // For JSON, pass as string - TanStack Start will parse it
-        requestInit.body = body.toString("utf-8");
-        if (req.method === "POST" && req.url?.includes("serverActions")) {
-          console.log("[server.mjs] Passing body as string:", requestInit.body.substring(0, 100));
-        }
-      } else {
-        // For other content types, pass as ReadableStream
-        requestInit.body = Readable.toWeb(Readable.from([body]));
+    // For POST/PUT/PATCH requests, pass the request stream as body
+    // TanStack Start will call request.json() to parse it
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      // Convert Node.js Readable stream to ReadableStream for Fetch API
+      // This allows request.json() to read the body
+      requestInit.body = Readable.toWeb(req);
+      
+      // Debug logging for POST requests
+      if (req.method === "POST" && req.url?.includes("serverActions")) {
+        console.log("[server.mjs] POST request to serverActions");
+        console.log("[server.mjs] Content-Type:", headers.get("content-type"));
+        console.log("[server.mjs] Passing body as ReadableStream");
       }
-    } else if (req.method === "POST" && req.url?.includes("serverActions")) {
-      console.log("[server.mjs] WARNING: No body found for POST request!");
     }
     
     const request = new Request(url, requestInit);
