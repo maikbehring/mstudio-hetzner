@@ -61,10 +61,9 @@ function DashboardComponent() {
 			console.log("[Dashboard] Data JSON:", JSON.stringify(dataToSend));
 			
 			try {
-				// TanStack Start server functions serialize the argument as JSON body
-				// The inputValidator will extract and validate the data from request.json()
-				// We pass the data directly - TanStack Start will serialize it correctly
-				const result = await performServerAction(dataToSend);
+				// IMPORTANT: TanStack Start server functions with inputValidator expect data wrapped in { data: ... }
+				// The inputValidator extracts and validates the data from request.json()
+				const result = await performServerAction({ data: dataToSend });
 				console.log("[Dashboard] performServerAction result:", result);
 				return result;
 			} catch (error) {
