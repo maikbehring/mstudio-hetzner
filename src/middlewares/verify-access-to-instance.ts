@@ -28,9 +28,12 @@ export const verifyAccessToInstance = createMiddleware({
 
 		// With inputValidator, data should now be available in middleware
 		// inputValidator parses the body BEFORE middleware runs
-		console.log("[verifyAccessToInstance.server] Received data:", data);
-		console.log("[verifyAccessToInstance.server] Data type:", typeof data);
-		console.log("[verifyAccessToInstance.server] Data is null?", data === null);
+		// Security: Only log in development, don't log sensitive data
+		if (process.env.NODE_ENV === "development") {
+			console.log("[verifyAccessToInstance.server] Data type:", typeof data);
+			console.log("[verifyAccessToInstance.server] Data is null?", data === null);
+			// Don't log actual data - could contain sensitive information
+		}
 		
 		// Pass data through - inputValidator ensures it's parsed before middleware
 		return (next as any)({
