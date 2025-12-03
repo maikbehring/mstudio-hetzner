@@ -1,6 +1,12 @@
 import http from "node:http";
 import { Readable } from "node:stream";
+import { readFileSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import * as serverModule from "./dist/server/server.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 10000;
 const host = process.env.HOST || "0.0.0.0";
@@ -14,8 +20,57 @@ if (!serverEntry || !serverEntry.fetch) {
   throw new Error("Failed to load server module - fetch function not found");
 }
 
+// Serve static assets
+function serveStaticFile(filePath) {
+  try {
+    // Try dist/client/assets first (client assets)
+    let fullPath = join(__dirname, "dist", "client", filePath);
+    if (existsSync(fullPath)) {
+      return readFileSync(fullPath);
+    }
+    
+    // Try dist/client (root client files)
+    fullPath = join(__dirname, "dist", "client", filePath);
+    if (existsSync(fullPath)) {
+      return readFileSync(fullPath);
+    }
+    
+    // Try dist (root dist files)
+    fullPath = join(__dirname, "dist", filePath);
+    if (existsSync(fullPath)) {
+      return readFileSync(fullPath);
+    }
+    
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   try {
+    // Serve static assets
+    if (req.method === "GET" && req.url && req.url.startsWith("/assets/")) {
+      const filePath = req.url.replace(/^\//, "");
+      const fileContent = serveStaticFile(filePath);
+      
+      if (fileContent) {
+        // Set appropriate content type
+        const ext = filePath.split(".").pop();
+        const contentType = ext === "js" ? "application/javascript" :
+                          ext === "css" ? "text/css" :
+                          ext === "html" ? "text/html" :
+                          ext === "json" ? "application/json" :
+                          "application/octet-stream";
+        
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        res.statusCode = 200;
+        res.end(fileContent);
+        return;
+      }
+    }
+    
     // Convert Node.js request to Fetch API Request
     const protocol = req.headers["x-forwarded-proto"] || "http";
     const hostname = req.headers.host || `${host}:${port}`;
