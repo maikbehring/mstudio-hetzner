@@ -23,10 +23,13 @@ export const verifyAccessToInstance = createMiddleware({
 		// Debug logging to see what data we receive
 		console.log("[verifyAccessToInstance.server] Received data:", data);
 		console.log("[verifyAccessToInstance.server] Data type:", typeof data);
+		console.log("[verifyAccessToInstance.server] Data is null?", data === null);
+		console.log("[verifyAccessToInstance.server] Data is undefined?", data === undefined);
 		
-		// Don't explicitly pass data - TanStack Start handles it automatically
-		// But we log it to debug why it might be null
-		return next({
+		// Explicitly pass data through - TanStack Start should handle it automatically,
+		// but in production with middleware, we need to be explicit
+		// Using 'as any' to bypass TypeScript type checking
+		return (next as any)({
 			context: {
 				extensionInstanceId: res.extensionInstanceId,
 				extensionId: res.extensionId,
@@ -34,5 +37,6 @@ export const verifyAccessToInstance = createMiddleware({
 				contextId: res.contextId,
 				projectId: context.projectId,
 			},
+			data, // Explicitly pass data through
 		});
 	});
