@@ -3,6 +3,7 @@ import { z } from "zod";
 import { verifyAccessToInstance } from "~/middlewares/verify-access-to-instance";
 import { db } from "~/db";
 import { HetznerApiClient } from "~/lib/hetzner-api";
+import type { VerifiedContext } from "~/types/middleware-context";
 
 const SetApiTokenSchema = z.object({
 	apiToken: z.string().min(1, "API token is required"),
@@ -11,7 +12,7 @@ const SetApiTokenSchema = z.object({
 export const setHetznerApiToken = createServerFn({ method: "POST" })
 	.middleware([verifyAccessToInstance])
 	.handler(async ({ context, data }) => {
-		const { extensionInstanceId } = context;
+		const { extensionInstanceId } = context as unknown as VerifiedContext;
 		
 		// Debug logging
 		console.log("[setHetznerApiToken] Received data:", JSON.stringify(data, null, 2));

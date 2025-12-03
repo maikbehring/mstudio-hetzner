@@ -2,11 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { verifyAccessToInstance } from "~/middlewares/verify-access-to-instance";
 import { getHetznerClient } from "./getHetznerClient";
 import { db } from "~/db";
+import type { VerifiedContext } from "~/types/middleware-context";
 
 export const listHetznerResources = createServerFn({ method: "GET" })
 	.middleware([verifyAccessToInstance])
 	.handler(async ({ context }) => {
-		const { extensionInstanceId } = context;
+		const { extensionInstanceId } = context as unknown as VerifiedContext;
 		const client = await getHetznerClient(extensionInstanceId);
 
 		// Fetch all resource types in parallel

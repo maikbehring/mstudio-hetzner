@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { verifyAccessToInstance } from "~/middlewares/verify-access-to-instance";
 import { db } from "~/db";
+import type { VerifiedContext } from "~/types/middleware-context";
 
 const CreateNoteSchema = z.object({
 	resourceType: z.enum(["server", "volume", "floating_ip", "primary_ip", "load_balancer", "network", "firewall"]),
@@ -12,7 +13,7 @@ const CreateNoteSchema = z.object({
 export const createResourceNote = createServerFn()
 	.middleware([verifyAccessToInstance])
 	.handler(async ({ context, data }) => {
-		const { extensionInstanceId, userId } = context;
+		const { extensionInstanceId, userId } = context as unknown as VerifiedContext;
 		if (!data || typeof data !== "object") {
 			throw new Error("resourceType, resourceId, and note are required");
 		}
@@ -38,7 +39,7 @@ const DeleteNoteSchema = z.object({
 export const deleteResourceNote = createServerFn()
 	.middleware([verifyAccessToInstance])
 	.handler(async ({ context, data }) => {
-		const { extensionInstanceId } = context;
+		const { extensionInstanceId } = context as unknown as VerifiedContext;
 		const { noteId: id } = DeleteNoteSchema.parse({ noteId: String(data) });
 
 		await db.hetznerResourceNote.delete({

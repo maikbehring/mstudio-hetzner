@@ -3,6 +3,7 @@ import { z } from "zod";
 import { verifyAccessToInstance } from "~/middlewares/verify-access-to-instance";
 import { getHetznerClient } from "./getHetznerClient";
 import { db } from "~/db";
+import type { VerifiedContext } from "~/types/middleware-context";
 
 const GetServerParamsSchema = z.object({
 	serverId: z.string().transform((val) => parseInt(val, 10)),
@@ -11,7 +12,7 @@ const GetServerParamsSchema = z.object({
 export const getHetznerServer = createServerFn()
 	.middleware([verifyAccessToInstance])
 	.handler(async ({ context, data }) => {
-		const { extensionInstanceId } = context;
+		const { extensionInstanceId } = context as unknown as VerifiedContext;
 		if (!data || typeof data !== "object" || !("serverId" in data)) {
 			throw new Error("serverId parameter is required");
 		}

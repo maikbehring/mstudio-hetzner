@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { verifyAccessToInstance } from "~/middlewares/verify-access-to-instance";
 import { getHetznerClient } from "./getHetznerClient";
+import type { VerifiedContext } from "~/types/middleware-context";
 
 const ServerActionSchema = z.object({
 	serverId: z.string().transform((val) => parseInt(val, 10)),
@@ -12,7 +13,8 @@ export const performServerAction = createServerFn({ method: "POST" })
 	.middleware([verifyAccessToInstance])
 	.handler(async ({ context, data }) => {
 		try {
-			const { extensionInstanceId } = context;
+			// Type assertion needed because middleware uses 'as any' to pass data
+			const { extensionInstanceId } = context as unknown as VerifiedContext;
 			
 			// Debug logging
 			console.log("[performServerAction] Received data:", JSON.stringify(data, null, 2));

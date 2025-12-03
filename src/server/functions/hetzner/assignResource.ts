@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { verifyAccessToInstance } from "~/middlewares/verify-access-to-instance";
 import { db } from "~/db";
+import type { VerifiedContext } from "~/types/middleware-context";
 
 const AssignResourceSchema = z.object({
 	resourceType: z.enum(["server", "volume", "floating_ip", "primary_ip", "load_balancer", "network", "firewall"]),
@@ -15,7 +16,7 @@ const AssignResourceSchema = z.object({
 export const assignHetznerResource = createServerFn({ method: "POST" })
 	.middleware([verifyAccessToInstance])
 	.handler(async ({ context, data }) => {
-		const { extensionInstanceId } = context;
+		const { extensionInstanceId } = context as unknown as VerifiedContext;
 		const parsedData = AssignResourceSchema.parse(data);
 
 		const assignment = await db.hetznerResourceAssignment.upsert({
