@@ -358,6 +358,9 @@ function CreateServerComponent() {
 					isDisabled={createMutation.isPending}
 				/>
 				<FieldDescription>
+					Only lowercase letters, numbers, hyphens, and dots allowed. Invalid characters will be automatically cleaned.
+				</FieldDescription>
+				<FieldDescription>
 					Must be unique and a valid hostname (RFC 1123). Only letters, numbers, dots, and dashes allowed.
 				</FieldDescription>
 			</Section>

@@ -10,8 +10,42 @@ const CreateServerSchema = z.object({
 	name: z.string()
 		.min(1)
 		.max(63)
-		.regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i, 
-			"Must be a valid hostname (RFC 1123)"),
+		.transform((val) => {
+			// Clean up the name to match RFC 1123 hostname requirements
+			// Convert to lowercase, replace spaces and underscores with hyphens
+			// Remove invalid characters, ensure it starts and ends with alphanumeric
+			let cleaned = val
+				.toLowerCase()
+				.replace(/[^a-z0-9.-]/g, "-") // Replace invalid chars with hyphens
+				.replace(/\.+/g, ".") // Replace multiple dots with single dot
+				.replace(/-+/g, "-") // Replace multiple hyphens with single hyphen
+				.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, ""); // Remove leading/trailing non-alphanumeric
+			
+			// Ensure it starts and ends with alphanumeric
+			if (cleaned.length > 0 && !/^[a-z0-9]/.test(cleaned)) {
+				cleaned = "s" + cleaned;
+			}
+			if (cleaned.length > 0 && !/[a-z0-9]$/.test(cleaned)) {
+				cleaned = cleaned + "0";
+			}
+			
+			// Truncate to max 63 characters
+			if (cleaned.length > 63) {
+				cleaned = cleaned.substring(0, 63);
+				// Ensure it still ends with alphanumeric
+				if (!/[a-z0-9]$/.test(cleaned)) {
+					cleaned = cleaned.substring(0, 62) + "0";
+				}
+			}
+			
+			return cleaned;
+		})
+		.refine((val) => val.length >= 1 && val.length <= 63, {
+			message: "Server name must be between 1 and 63 characters"
+		})
+		.refine((val) => /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(val), {
+			message: "Must be a valid hostname (RFC 1123)"
+		}),
 	server_type: z.string().min(1, "Server type is required"),
 	image: z.string().min(1, "Image is required"),
 	location: z.string().transform((val) => (val && val.trim() !== "") ? val : undefined).optional(),
