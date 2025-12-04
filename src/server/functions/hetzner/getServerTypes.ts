@@ -11,3 +11,4 @@ export const getServerTypes = createServerFn({ method: "GET" })
 		return await client.listServerTypes();
 	});
 
+

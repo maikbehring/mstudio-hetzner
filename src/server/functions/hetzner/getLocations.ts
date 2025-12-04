@@ -11,3 +11,4 @@ export const getLocations = createServerFn({ method: "GET" })
 		return await client.listLocations();
 	});
 
+

@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { verifyAccessToInstance } from "~/middlewares/verify-access-to-instance";
 import { getHetznerClient } from "./getHetznerClient";
@@ -6,17 +7,18 @@ import { db } from "~/db";
 import type { VerifiedContext } from "~/types/middleware-context";
 
 const GetServerParamsSchema = z.object({
-	serverId: z.string().transform((val) => parseInt(val, 10)),
+	serverId: z.union([z.string(), z.number()]).transform((val) =>
+		typeof val === "string" ? parseInt(val, 10) : val
+	),
 });
 
-export const getHetznerServer = createServerFn()
+export const getHetznerServer = createServerFn({ method: "GET" })
+	.inputValidator(zodValidator(GetServerParamsSchema))
 	.middleware([verifyAccessToInstance])
-	.handler(async ({ context, data }) => {
+	.handler(async ({ context, data }: { context: unknown; data: unknown }) => {
 		const { extensionInstanceId } = context as unknown as VerifiedContext;
-		if (!data || typeof data !== "object" || !("serverId" in data)) {
-			throw new Error("serverId parameter is required");
-		}
-		const { serverId } = GetServerParamsSchema.parse(data);
+		const parsed = data as z.infer<typeof GetServerParamsSchema>;
+		const { serverId } = parsed;
 		const client = await getHetznerClient(extensionInstanceId);
 
 		const server = await client.getServer(serverId);
