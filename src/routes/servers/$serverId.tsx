@@ -72,7 +72,7 @@ function ServerDetailComponent() {
 
 	const deleteServerMutation = useMutation({
 		mutationFn: async () => {
-			await (deleteServer as any)({ serverId });
+			await (deleteServer as any)({ data: { serverId } });
 		},
 		onSuccess: () => {
 			// Invalidate resources list and navigate to server list
