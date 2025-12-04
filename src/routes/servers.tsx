@@ -5,7 +5,7 @@ import {
 	Content,
 	Badge,
 } from "@mittwald/flow-remote-react-components";
-import { useRouter } from "@tanstack/react-router";
+import { useRouter, Outlet } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { listHetznerServers } from "~/server/functions/hetzner/listServers";
@@ -18,6 +18,17 @@ export const Route = createFileRoute("/servers")({
 
 function ServersComponent() {
 	const router = useRouter();
+	const location = router.state.location;
+	const isChildRoute = location.pathname !== "/servers";
+	
+	console.log("[Servers] Component rendering, location:", location.pathname, "isChildRoute:", isChildRoute);
+
+	// If we're on a child route (like /servers/create or /servers/$serverId), render the outlet
+	if (isChildRoute) {
+		return <Outlet />;
+	}
+
+	// Otherwise, render the server list
 	const {
 		data,
 		isLoading,
