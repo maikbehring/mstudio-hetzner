@@ -84,19 +84,55 @@ function CreateServerComponent() {
 		},
 	});
 
+	// Helper function to determine server type architecture
+	// Server types starting with "ca" (e.g., "cax11", "cpx11") are ARM-based
+	// All others are x86-based
+	const getServerTypeArchitecture = (serverTypeName: string): "x86" | "arm" => {
+		return serverTypeName.startsWith("ca") ? "arm" : "x86";
+	};
+
+	// Helper function to determine image architecture
+	// First check if architecture is explicitly provided in the API response
+	// Otherwise, infer from image name or OS flavor
+	const getImageArchitecture = (image: { architecture?: "x86" | "arm"; name?: string | null; os_flavor?: string | null }): "x86" | "arm" => {
+		// If architecture is explicitly provided, use it
+		if (image.architecture) {
+			return image.architecture;
+		}
+		// Otherwise, default to x86 (most images are x86)
+		// ARM images typically have "arm" in their name or are explicitly marked
+		if (image.name?.toLowerCase().includes("arm") || image.os_flavor?.toLowerCase().includes("arm")) {
+			return "arm";
+		}
+		return "x86";
+	};
+
+	// Filter images based on selected server type architecture
+	const compatibleImages = useMemo(() => {
+		if (!images?.images || !formData.server_type) {
+			return images?.images || [];
+		}
+		const serverArchitecture = getServerTypeArchitecture(formData.server_type);
+		return images.images.filter((img) => {
+			const imageArchitecture = getImageArchitecture(img);
+			return imageArchitecture === serverArchitecture;
+		});
+	}, [images, formData.server_type]);
+
 	// Create mapping from label text to image ID
 	// Select returns the label text, not the key, so we need to map it back to the ID
+	// Only include compatible images in the map
 	const imageLabelToIdMap = useMemo(() => {
-		if (!images?.images) return new Map<string, string>();
+		if (!compatibleImages) return new Map<string, string>();
 		const map = new Map<string, string>();
-		images.images.forEach((img) => {
+		compatibleImages.forEach((img) => {
 			const imageLabel = img.name 
 				? `${img.name} (${img.os_flavor} ${img.os_version})`
 				: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
 			map.set(imageLabel, String(img.id));
 		});
 		return map;
-	}, [images]);
+	}, [compatibleImages]);
 
 	// Create mapping from server type label text to server type name
 	const serverTypeLabelToNameMap = useMemo(() => {
@@ -357,7 +393,19 @@ function CreateServerComponent() {
 								// Map it back to the server type name
 								const serverTypeName = serverTypeLabelToNameMap.get(String(selectedText));
 								if (serverTypeName) {
-									setFormData({ ...formData, server_type: serverTypeName });
+									// Check if currently selected image is compatible with new server type
+									const newServerArchitecture = getServerTypeArchitecture(serverTypeName);
+									const currentImage = images?.images.find(img => String(img.id) === formData.image);
+									const isCurrentImageCompatible = currentImage 
+										? getImageArchitecture(currentImage) === newServerArchitecture
+										: true;
+									
+									setFormData({ 
+										...formData, 
+										server_type: serverTypeName,
+										// Reset image if it's not compatible with the new server type
+										image: isCurrentImageCompatible ? formData.image : "",
+									});
 									setError(null);
 								} else {
 									console.error("[CreateServer] Could not find server type name for label:", selectedText);
@@ -397,47 +445,86 @@ function CreateServerComponent() {
 			</Section>
 
 			<Section>
-				{images && images.images.length > 0 ? (
-					<Select
-						selectedKey={formData.image ? (() => {
-							// Find the label for the selected image ID
-							const selectedImage = images.images.find(img => String(img.id) === formData.image);
-							return selectedImage 
-								? (selectedImage.name 
-									? `${selectedImage.name} (${selectedImage.os_flavor} ${selectedImage.os_version})`
-									: `${selectedImage.os_flavor} ${selectedImage.os_version} (ID: ${selectedImage.id})`)
-								: null;
-						})() : null}
-						onSelectionChange={(selectedText) => {
-							if (selectedText) {
-								// Select returns the label text, not the key
-								// Map it back to the image ID
-								const imageId = imageLabelToIdMap.get(String(selectedText));
-								if (imageId) {
-									setFormData({ ...formData, image: imageId });
-									setError(null);
-								} else {
-									console.error("[CreateServer] Could not find image ID for label:", selectedText);
-									setError("Invalid image selection");
+				{images && compatibleImages.length > 0 ? (
+					<>
+						<Select
+							selectedKey={formData.image ? (() => {
+								// Find the label for the selected image ID (only in compatible images)
+								const selectedImage = compatibleImages.find(img => String(img.id) === formData.image);
+								return selectedImage 
+									? (selectedImage.name 
+										? `${selectedImage.name} (${selectedImage.os_flavor} ${selectedImage.os_version})`
+										: `${selectedImage.os_flavor} ${selectedImage.os_version} (ID: ${selectedImage.id})`)
+									: null;
+							})() : null}
+							onSelectionChange={(selectedText) => {
+								if (selectedText) {
+									// Select returns the label text, not the key
+									// Map it back to the image ID
+									const imageId = imageLabelToIdMap.get(String(selectedText));
+									if (imageId) {
+										setFormData({ ...formData, image: imageId });
+										setError(null);
+									} else {
+										console.error("[CreateServer] Could not find image ID for label:", selectedText);
+										setError("Invalid image selection");
+									}
 								}
-							}
-						}}
-						isDisabled={createMutation.isPending}
-					>
+							}}
+							isDisabled={createMutation.isPending || !formData.server_type}
+						>
+							<Label>Image *</Label>
+							{compatibleImages.map((img) => {
+								// Use ID as key to ensure uniqueness (multiple images can have the same name)
+								const imageKey = String(img.id);
+								const imageLabel = img.name 
+									? `${img.name} (${img.os_flavor} ${img.os_version})`
+									: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
+								return (
+									<Option key={imageKey}>
+										{imageLabel}
+									</Option>
+								);
+							})}
+						</Select>
+						{formData.server_type && compatibleImages.length < images.images.length && (
+							<FieldDescription>
+								Showing {compatibleImages.length} of {images.images.length} images compatible with {formData.server_type} ({getServerTypeArchitecture(formData.server_type).toUpperCase()} architecture).
+							</FieldDescription>
+						)}
+					</>
+				) : images && images.images.length > 0 && formData.server_type ? (
+					<>
 						<Label>Image *</Label>
-						{images.images.map((img) => {
-							// Use ID as key to ensure uniqueness (multiple images can have the same name)
-							const imageKey = String(img.id);
-							const imageLabel = img.name 
-								? `${img.name} (${img.os_flavor} ${img.os_version})`
-								: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
-							return (
-								<Option key={imageKey}>
-									{imageLabel}
-								</Option>
-							);
-						})}
-					</Select>
+						<TextField
+							value=""
+							onChange={() => {}}
+							placeholder="No compatible images available"
+							isDisabled={true}
+						/>
+						<Alert status="warning">
+							<Text>
+								No images available for {formData.server_type} ({getServerTypeArchitecture(formData.server_type).toUpperCase()} architecture). 
+								Please select a different server type.
+							</Text>
+						</Alert>
+					</>
+				) : images && images.images.length > 0 ? (
+					<>
+						<Label>Image *</Label>
+						<TextField
+							value={formData.image}
+							onChange={(value) => {
+								setFormData({ ...formData, image: value });
+								setError(null);
+							}}
+							placeholder="Please select a server type first"
+							isDisabled={true}
+						/>
+						<FieldDescription>
+							Please select a server type first to see compatible images.
+						</FieldDescription>
+					</>
 				) : (
 					<>
 						<Label>Image *</Label>
