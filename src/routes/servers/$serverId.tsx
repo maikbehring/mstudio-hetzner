@@ -38,7 +38,7 @@ function ServerDetailComponent() {
 		refetch,
 	} = useQuery({
 		queryKey: ["hetznerServer", serverId],
-		queryFn: () => (getHetznerServer as any)({ serverId }),
+		queryFn: () => (getHetznerServer as any)({ data: { serverId } }),
 	});
 
 	const serverActionMutation = useMutation({
