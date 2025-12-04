@@ -75,10 +75,15 @@ function ServerDetailComponent() {
 			await (deleteServer as any)({ data: { serverId } });
 		},
 		onSuccess: () => {
-			// Invalidate resources list and navigate to server list
+			// Invalidate resources list and navigate to dashboard
 			queryClient.invalidateQueries({ queryKey: ["hetznerResources"] });
 			queryClient.invalidateQueries({ queryKey: ["hetznerServers"] });
-			router.navigate({ to: "/servers" });
+			queryClient.invalidateQueries({ queryKey: ["hetznerServer", serverId] });
+			// Navigate to dashboard immediately
+			router.navigate({ to: "/" });
+		},
+		onError: (error) => {
+			console.error("[deleteServerMutation] Error deleting server:", error);
 		},
 	});
 
