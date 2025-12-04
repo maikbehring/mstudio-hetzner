@@ -280,11 +280,114 @@ const PricesResponseSchema = z.object({
 	}),
 });
 
+// Schemas for server creation
+const ServerTypeSchema = z.object({
+	id: z.number(),
+	name: z.string(),
+	description: z.string(),
+	cores: z.number(),
+	memory: z.number(),
+	disk: z.number(),
+	prices: z.array(z.object({
+		location: z.string(),
+		price_hourly: z.object({
+			gross: z.string(),
+			net: z.string(),
+		}),
+		price_monthly: z.object({
+			gross: z.string(),
+			net: z.string(),
+		}),
+	})),
+});
+
+const ServerTypesResponseSchema = z.object({
+	server_types: z.array(ServerTypeSchema),
+});
+
+const ImageSchema = z.object({
+	id: z.number(),
+	type: z.enum(["system", "snapshot", "backup", "app"]),
+	status: z.enum(["available", "creating", "unavailable"]),
+	name: z.string().nullable(),
+	description: z.string().nullable(),
+	image_size: z.number().nullable(),
+	disk_size: z.number(),
+	created: z.string(),
+	os_flavor: z.string().nullable(),
+	os_version: z.string().nullable(),
+	rapid_deploy: z.boolean(),
+	labels: z.record(z.string()),
+});
+
+const ImagesResponseSchema = z.object({
+	images: z.array(ImageSchema),
+	meta: z.object({
+		pagination: z.object({
+			page: z.number(),
+			per_page: z.number(),
+			previous_page: z.number().nullable(),
+			next_page: z.number().nullable(),
+			last_page: z.number(),
+			total_entries: z.number(),
+		}),
+	}),
+});
+
+const LocationSchema = z.object({
+	id: z.number(),
+	name: z.string(),
+	description: z.string(),
+	country: z.string(),
+	city: z.string(),
+	latitude: z.number(),
+	longitude: z.number(),
+});
+
+const LocationsResponseSchema = z.object({
+	locations: z.array(LocationSchema),
+});
+
+const CreateServerRequestSchema = z.object({
+	name: z.string(),
+	server_type: z.string(),
+	image: z.string(),
+	location: z.string().optional(),
+	datacenter: z.string().optional(),
+	start_after_create: z.boolean().optional(),
+	ssh_keys: z.array(z.union([z.string(), z.number()])).optional(),
+	volumes: z.array(z.number()).optional(),
+	networks: z.array(z.number()).optional(),
+	firewalls: z.array(z.object({ firewall: z.number() })).optional(),
+	placement_group: z.number().optional(),
+	user_data: z.string().optional(),
+	labels: z.record(z.string()).optional(),
+	automount: z.boolean().optional(),
+	public_net: z.object({
+		enable_ipv4: z.boolean().optional(),
+		enable_ipv6: z.boolean().optional(),
+		ipv4: z.number().optional(),
+		ipv6: z.number().optional(),
+	}).optional(),
+});
+
+const CreateServerResponseSchema = z.object({
+	server: ServerSchema,
+	action: ActionSchema,
+	next_actions: z.array(ActionSchema),
+	root_password: z.string().nullable(),
+});
+
 export type Server = z.infer<typeof ServerSchema>;
 export type Volume = z.infer<typeof VolumeSchema>;
 export type FloatingIp = z.infer<typeof FloatingIpSchema>;
 export type Action = z.infer<typeof ActionSchema>;
 export type Prices = z.infer<typeof PricesResponseSchema>["pricing"];
+export type ServerType = z.infer<typeof ServerTypeSchema>;
+export type Image = z.infer<typeof ImageSchema>;
+export type Location = z.infer<typeof LocationSchema>;
+export type CreateServerRequest = z.infer<typeof CreateServerRequestSchema>;
+export type CreateServerResponse = z.infer<typeof CreateServerResponseSchema>;
 
 export class HetznerApiError extends Error {
 	constructor(
@@ -378,6 +481,26 @@ export class HetznerApiClient {
 		const data = await this.request<unknown>("GET", "/pricing");
 		const parsed = PricesResponseSchema.parse(data);
 		return parsed.pricing;
+	}
+
+	async listServerTypes(): Promise<{ server_types: ServerType[] }> {
+		const data = await this.request<unknown>("GET", "/server_types");
+		return ServerTypesResponseSchema.parse(data);
+	}
+
+	async listSystemImages(): Promise<{ images: Image[]; meta: { pagination: { page: number; per_page: number; previous_page: number | null; next_page: number | null; last_page: number; total_entries: number } } }> {
+		const data = await this.request<unknown>("GET", "/images?type=system");
+		return ImagesResponseSchema.parse(data);
+	}
+
+	async listLocations(): Promise<{ locations: Location[] }> {
+		const data = await this.request<unknown>("GET", "/locations");
+		return LocationsResponseSchema.parse(data);
+	}
+
+	async createServer(params: CreateServerRequest): Promise<CreateServerResponse> {
+		const data = await this.request<unknown>("POST", "/servers", params);
+		return CreateServerResponseSchema.parse(data);
 	}
 }
 
