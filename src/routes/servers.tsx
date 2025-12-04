@@ -51,7 +51,10 @@ function ServersComponent() {
 			<Content>
 				<Heading>Hetzner Cloud Servers</Heading>
 				<Button
-					onPress={() => router.navigate({ to: "/servers/create" })}
+					onPress={() => {
+						console.log("[Servers] Navigating to /servers/create");
+						router.navigate({ to: "/servers/create" });
+					}}
 				>
 					Create New Server
 				</Button>
