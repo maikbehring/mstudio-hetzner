@@ -398,6 +398,9 @@ function ServerDetailComponent() {
 
 			<Section>
 				<ActionGroup>
+					<Button variant="outline" onPress={() => router.navigate({ to: "/" })}>
+						Zurück zur Übersicht
+					</Button>
 					<Button variant="outline" onPress={() => refetch()}>
 						Refresh
 					</Button>
