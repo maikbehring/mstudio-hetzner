@@ -87,7 +87,12 @@ function CreateServerComponent() {
 	// Helper function to determine server type architecture
 	// Server types starting with "ca" (e.g., "cax11", "cpx11") are ARM-based
 	// All others are x86-based
-	const getServerTypeArchitecture = (serverTypeName: string): "x86" | "arm" => {
+	// Handles both server type name (e.g., "cpx21") and full label text
+	const getServerTypeArchitecture = (serverTypeNameOrLabel: string): "x86" | "arm" => {
+		// Extract server type name from label if it's a full label (e.g., "cpx21 - CPX 21...")
+		const serverTypeName = serverTypeNameOrLabel.includes(" - ") 
+			? serverTypeNameOrLabel.split(" - ")[0] 
+			: serverTypeNameOrLabel;
 		return serverTypeName.startsWith("ca") ? "arm" : "x86";
 	};
 
@@ -116,13 +121,6 @@ function CreateServerComponent() {
 		const filtered = images.images.filter((img) => {
 			const imageArchitecture = getImageArchitecture(img);
 			return imageArchitecture === serverArchitecture;
-		});
-		console.log("[CreateServer] Filtered images:", {
-			total: images.images.length,
-			compatible: filtered.length,
-			serverType: formData.server_type,
-			serverArchitecture,
-			compatibleImageIds: filtered.map(img => img.id),
 		});
 		return filtered;
 	}, [images, formData.server_type]);
@@ -355,8 +353,9 @@ function CreateServerComponent() {
 						selectedKey={formData.server_type || undefined}
 						onSelectionChange={(selectedKey) => {
 							if (selectedKey) {
-								// selectedKey should be the server type name
+								// selectedKey should be the server type name (the key prop value)
 								const serverTypeName = String(selectedKey);
+								
 								// Check if currently selected image is compatible with new server type
 								const newServerArchitecture = getServerTypeArchitecture(serverTypeName);
 								const currentImage = images?.images.find(img => String(img.id) === formData.image);
@@ -366,7 +365,7 @@ function CreateServerComponent() {
 								
 								setFormData({ 
 									...formData, 
-									server_type: serverTypeName,
+									server_type: serverTypeName, // Store only the name, not the label
 									// Reset image if it's not compatible with the new server type
 									image: isCurrentImageCompatible ? formData.image : "",
 								});
@@ -410,43 +409,29 @@ function CreateServerComponent() {
 						<Select
 							selectedKey={formData.image || undefined}
 							onSelectionChange={(selectedKey) => {
-								console.log("[CreateServer] Image selection changed:", selectedKey, "Type:", typeof selectedKey);
 								if (selectedKey !== null && selectedKey !== undefined) {
 									// selectedKey should be the image ID (string)
 									const imageId = String(selectedKey);
-									console.log("[CreateServer] Setting image to:", imageId);
 									setFormData({ ...formData, image: imageId });
 									setError(null);
 								}
 							}}
-							isDisabled={createMutation.isPending || !formData.server_type}
+							isDisabled={createMutation.isPending || !formData.server_type || compatibleImages.length === 0}
 						>
 							<Label>Image *</Label>
-							{compatibleImages.length > 0 ? (
-								compatibleImages.map((img) => {
-									// Use ID as key to ensure uniqueness (multiple images can have the same name)
-									const imageKey = String(img.id);
-									const imageLabel = img.name 
-										? `${img.name} (${img.os_flavor} ${img.os_version})`
-										: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
-									console.log("[CreateServer] Rendering Option:", { key: imageKey, label: imageLabel });
-									return (
-										<Option key={imageKey}>
-											{imageLabel}
-										</Option>
-									);
-								})
-							) : (
-								<Option key="no-images" isDisabled>
-									No compatible images available
-								</Option>
-							)}
+							{compatibleImages.map((img) => {
+								// Use ID as key to ensure uniqueness (multiple images can have the same name)
+								const imageKey = String(img.id);
+								const imageLabel = img.name 
+									? `${img.name} (${img.os_flavor} ${img.os_version})`
+									: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
+								return (
+									<Option key={imageKey}>
+										{imageLabel}
+									</Option>
+								);
+							})}
 						</Select>
-						{process.env.NODE_ENV === "development" && (
-							<FieldDescription>
-								Debug: compatibleImages.length={compatibleImages.length}, formData.image={formData.image}, formData.server_type={formData.server_type}
-							</FieldDescription>
-						)}
 						{formData.server_type && compatibleImages.length < images.images.length && (
 							<FieldDescription>
 								Showing {compatibleImages.length} of {images.images.length} images compatible with {formData.server_type} ({getServerTypeArchitecture(formData.server_type).toUpperCase()} architecture).
