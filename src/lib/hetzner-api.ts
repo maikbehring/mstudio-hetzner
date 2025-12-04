@@ -318,6 +318,7 @@ const ImageSchema = z.object({
 	os_version: z.string().nullable(),
 	rapid_deploy: z.boolean(),
 	labels: z.record(z.string()),
+	architecture: z.enum(["x86", "arm"]).optional(), // Architecture field from Hetzner API
 });
 
 const ImagesResponseSchema = z.object({
