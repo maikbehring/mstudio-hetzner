@@ -20,6 +20,7 @@ import { getHetznerServer } from "~/server/functions/hetzner/getServer";
 import { performServerAction } from "~/server/functions/hetzner/serverActions";
 import { createResourceNote } from "~/server/functions/hetzner/resourceNotes";
 import { deleteServer } from "~/server/functions/hetzner/deleteServer";
+import { resetRootPassword } from "~/server/functions/hetzner/resetRootPassword";
 import { Loader } from "~/components/Loader";
 import { ErrorMessage } from "~/components/ErrorMessage";
 import { useState } from "react";
@@ -33,6 +34,7 @@ function ServerDetailComponent() {
 	const router = useRouter();
 	const queryClient = useQueryClient();
 	const [noteText, setNoteText] = useState("");
+	const [rootPassword, setRootPassword] = useState<string | null>(null);
 
 	const {
 		data,
@@ -67,6 +69,25 @@ function ServerDetailComponent() {
 		onSuccess: () => {
 			setNoteText("");
 			refetch();
+		},
+	});
+
+	const resetPasswordMutation = useMutation({
+		mutationFn: async () => {
+			const result = await (resetRootPassword as any)({ data: { serverId } });
+			return result;
+		},
+		onSuccess: (result) => {
+			if (result.root_password) {
+				setRootPassword(result.root_password);
+			}
+			// Refetch server data after password reset
+			setTimeout(() => {
+				refetch();
+			}, 2000);
+		},
+		onError: (error) => {
+			console.error("[resetPasswordMutation] Error resetting password:", error);
 		},
 	});
 
@@ -278,6 +299,58 @@ function ServerDetailComponent() {
 						{serverActionMutation.isPending ? "Processing..." : "Shutdown"}
 					</Button>
 				</ActionGroup>
+			</Section>
+
+			{rootPassword && (
+				<Section>
+					<Alert status="success">
+						<Heading level={4}>Root Password Reset</Heading>
+						<Text>
+							The root password has been reset. Please copy and save this password.
+							It will not be shown again.
+						</Text>
+						<LabeledValue>
+							<Label>New Root Password</Label>
+							<Content>
+								{rootPassword}
+								<CopyButton value={rootPassword} />
+							</Content>
+						</LabeledValue>
+						<ActionGroup>
+							<Button variant="outline" onPress={() => setRootPassword(null)}>
+								Close
+							</Button>
+						</ActionGroup>
+					</Alert>
+				</Section>
+			)}
+
+			<Section>
+				<Heading level={3}>Security</Heading>
+				<Content>
+					<LabeledValue>
+						<Label>Reset Root Password</Label>
+						<Content>
+							<Text>
+								Reset the root password for this server. The server must be running and have the qemu guest agent installed.
+							</Text>
+							<ActionGroup>
+								<Button
+									variant="outline"
+									onPress={() => resetPasswordMutation.mutate()}
+									isDisabled={server.status !== "running" || resetPasswordMutation.isPending}
+								>
+									{resetPasswordMutation.isPending ? "Resetting..." : "Reset Root Password"}
+								</Button>
+							</ActionGroup>
+							{server.status !== "running" && (
+								<Alert status="warning">
+									<Text>Server must be running to reset root password.</Text>
+								</Alert>
+							)}
+						</Content>
+					</LabeledValue>
+				</Content>
 			</Section>
 
 			<Section>

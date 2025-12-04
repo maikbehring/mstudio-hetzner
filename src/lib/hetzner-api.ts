@@ -135,6 +135,11 @@ const ActionResponseSchema = z.object({
 	action: ActionSchema,
 });
 
+const ResetPasswordResponseSchema = z.object({
+	root_password: z.string(),
+	action: ActionSchema,
+});
+
 const VolumeSchema = z.object({
 	id: z.number(),
 	created: z.string(),
@@ -466,6 +471,11 @@ export class HetznerApiClient {
 		const data = await this.request<unknown>("POST", `/servers/${serverId}/actions/shutdown`);
 		const parsed = ActionResponseSchema.parse(data);
 		return parsed.action;
+	}
+
+	async resetRootPassword(serverId: number): Promise<{ root_password: string; action: Action }> {
+		const data = await this.request<unknown>("POST", `/servers/${serverId}/actions/reset_password`);
+		return ResetPasswordResponseSchema.parse(data);
 	}
 
 	async deleteServer(serverId: number): Promise<Action> {
