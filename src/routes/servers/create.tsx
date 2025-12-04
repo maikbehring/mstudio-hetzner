@@ -39,17 +39,17 @@ function CreateServerComponent() {
 	});
 
 	// Load data for dropdowns
-	const { data: serverTypes, isLoading: serverTypesLoading } = useQuery({
+	const { data: serverTypes, isLoading: serverTypesLoading, error: serverTypesError } = useQuery({
 		queryKey: ["serverTypes"],
 		queryFn: () => getServerTypes(),
 	});
 
-	const { data: images, isLoading: imagesLoading } = useQuery({
+	const { data: images, isLoading: imagesLoading, error: imagesError } = useQuery({
 		queryKey: ["systemImages"],
 		queryFn: () => getSystemImages(),
 	});
 
-	const { data: locations, isLoading: locationsLoading } = useQuery({
+	const { data: locations, isLoading: locationsLoading, error: locationsError } = useQuery({
 		queryKey: ["locations"],
 		queryFn: () => getLocations(),
 	});
@@ -102,9 +102,39 @@ function CreateServerComponent() {
 	};
 
 	const isLoading = serverTypesLoading || imagesLoading || locationsLoading;
+	const hasError = serverTypesError || imagesError || locationsError;
 
 	if (isLoading) {
-		return <Loader />;
+		return (
+			<Content>
+				<Loader />
+				<Text>Loading server types, images, and locations...</Text>
+			</Content>
+		);
+	}
+
+	if (hasError) {
+		return (
+			<Content>
+				<Heading>Error Loading Data</Heading>
+				<Alert status="danger">
+					<Heading level={4}>Failed to load server creation data</Heading>
+					<Text>
+						{serverTypesError && `Server Types: ${serverTypesError instanceof Error ? serverTypesError.message : String(serverTypesError)}`}
+						{imagesError && `Images: ${imagesError instanceof Error ? imagesError.message : String(imagesError)}`}
+						{locationsError && `Locations: ${locationsError instanceof Error ? locationsError.message : String(locationsError)}`}
+					</Text>
+					<Button
+						variant="outline"
+						onPress={() => {
+							router.navigate({ to: "/" });
+						}}
+					>
+						Go Back
+					</Button>
+				</Alert>
+			</Content>
+		);
 	}
 
 	// Root password modal
@@ -204,25 +234,31 @@ function CreateServerComponent() {
 					placeholder="Select or type server type (e.g., cx11)"
 					isDisabled={createMutation.isPending}
 				/>
-				<FieldDescription>
-					Available server types: {serverTypes?.server_types.map(st => st.name).join(", ")}
-				</FieldDescription>
-				{serverTypes && (
-					<Content>
-						{serverTypes.server_types.slice(0, 5).map((st) => (
-							<Button
-								key={st.id}
-								variant="outline"
-								size="s"
-								onPress={() => {
-									setFormData({ ...formData, server_type: st.name });
-								}}
-								isDisabled={createMutation.isPending}
-							>
-								{st.name} - {st.description} ({st.cores} cores, {st.memory}GB RAM, {st.disk}GB disk)
-							</Button>
-						))}
-					</Content>
+				{serverTypes && serverTypes.server_types.length > 0 ? (
+					<>
+						<FieldDescription>
+							Available server types: {serverTypes.server_types.map(st => st.name).join(", ")}
+						</FieldDescription>
+						<Content>
+							{serverTypes.server_types.slice(0, 10).map((st) => (
+								<Button
+									key={st.id}
+									variant="outline"
+									size="s"
+									onPress={() => {
+										setFormData({ ...formData, server_type: st.name });
+									}}
+									isDisabled={createMutation.isPending}
+								>
+									{st.name} - {st.description} ({st.cores} cores, {st.memory / 1024}GB RAM, {st.disk}GB disk)
+								</Button>
+							))}
+						</Content>
+					</>
+				) : (
+					<FieldDescription>
+						No server types available. Please check your API token configuration.
+					</FieldDescription>
 				)}
 			</Section>
 
@@ -237,25 +273,31 @@ function CreateServerComponent() {
 					placeholder="Select or type image (e.g., ubuntu-22.04)"
 					isDisabled={createMutation.isPending}
 				/>
-				<FieldDescription>
-					Available images: {images?.images.slice(0, 10).map(img => img.name || String(img.id)).join(", ")}
-				</FieldDescription>
-				{images && (
-					<Content>
-						{images.images.slice(0, 5).map((img) => (
-							<Button
-								key={img.id}
-								variant="outline"
-								size="s"
-								onPress={() => {
-									setFormData({ ...formData, image: img.name || String(img.id) });
-								}}
-								isDisabled={createMutation.isPending}
-							>
-								{img.name || String(img.id)} ({img.os_flavor} {img.os_version})
-							</Button>
-						))}
-					</Content>
+				{images && images.images.length > 0 ? (
+					<>
+						<FieldDescription>
+							Available images: {images.images.slice(0, 10).map(img => img.name || String(img.id)).join(", ")}
+						</FieldDescription>
+						<Content>
+							{images.images.slice(0, 10).map((img) => (
+								<Button
+									key={img.id}
+									variant="outline"
+									size="s"
+									onPress={() => {
+										setFormData({ ...formData, image: img.name || String(img.id) });
+									}}
+									isDisabled={createMutation.isPending}
+								>
+									{img.name || String(img.id)} ({img.os_flavor} {img.os_version})
+								</Button>
+							))}
+						</Content>
+					</>
+				) : (
+					<FieldDescription>
+						No images available. Please check your API token configuration.
+					</FieldDescription>
 				)}
 			</Section>
 
@@ -270,25 +312,31 @@ function CreateServerComponent() {
 					placeholder="Select or type location (e.g., nbg1)"
 					isDisabled={createMutation.isPending}
 				/>
-				<FieldDescription>
-					Available locations: {locations?.locations.map(loc => `${loc.name} (${loc.city}, ${loc.country})`).join(", ")}
-				</FieldDescription>
-				{locations && (
-					<Content>
-						{locations.locations.map((loc) => (
-							<Button
-								key={loc.id}
-								variant="outline"
-								size="s"
-								onPress={() => {
-									setFormData({ ...formData, location: loc.name });
-								}}
-								isDisabled={createMutation.isPending}
-							>
-								{loc.name} - {loc.city}, {loc.country}
-							</Button>
-						))}
-					</Content>
+				{locations && locations.locations.length > 0 ? (
+					<>
+						<FieldDescription>
+							Available locations: {locations.locations.map(loc => `${loc.name} (${loc.city}, ${loc.country})`).join(", ")}
+						</FieldDescription>
+						<Content>
+							{locations.locations.map((loc) => (
+								<Button
+									key={loc.id}
+									variant="outline"
+									size="s"
+									onPress={() => {
+										setFormData({ ...formData, location: loc.name });
+									}}
+									isDisabled={createMutation.isPending}
+								>
+									{loc.name} - {loc.city}, {loc.country}
+								</Button>
+							))}
+						</Content>
+					</>
+				) : (
+					<FieldDescription>
+						No locations available. Please check your API token configuration.
+					</FieldDescription>
 				)}
 			</Section>
 
