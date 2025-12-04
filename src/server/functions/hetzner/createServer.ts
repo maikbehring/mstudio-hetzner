@@ -4,6 +4,7 @@ import { z } from "zod";
 import { verifyAccessToInstance } from "~/middlewares/verify-access-to-instance";
 import { getHetznerClient } from "./getHetznerClient";
 import type { VerifiedContext } from "~/types/middleware-context";
+import type { CreateServerRequest } from "~/lib/hetzner-api";
 
 const CreateServerSchema = z.object({
 	name: z.string()
@@ -13,8 +14,8 @@ const CreateServerSchema = z.object({
 			"Must be a valid hostname (RFC 1123)"),
 	server_type: z.string().min(1, "Server type is required"),
 	image: z.string().min(1, "Image is required"),
-	location: z.string().optional(),
-	datacenter: z.string().optional(),
+	location: z.string().transform((val) => (val && val.trim() !== "") ? val : undefined).optional(),
+	datacenter: z.string().transform((val) => (val && val.trim() !== "") ? val : undefined).optional(),
 	start_after_create: z.boolean().default(true),
 	ssh_keys: z.array(z.union([z.string(), z.number()])).optional(),
 	volumes: z.array(z.number()).optional(),
@@ -33,6 +34,9 @@ const CreateServerSchema = z.object({
 }).refine(
 	(data) => !(data.location && data.datacenter),
 	{ message: "Cannot specify both location and datacenter" }
+).refine(
+	(data) => !!(data.location || data.datacenter),
+	{ message: "Either location or datacenter must be provided" }
 );
 
 export const createServer = createServerFn({ method: "POST" })
@@ -52,19 +56,58 @@ export const createServer = createServerFn({ method: "POST" })
 			
 			const client = await getHetznerClient(extensionInstanceId);
 			
-			// Hetzner API accepts image as string (name) or number (ID)
-			// We'll pass it as-is since the API client handles both
-			const serverConfig = {
+			// Build server config, only including non-empty values
+			// Hetzner API requires either location OR datacenter, but not both
+			const serverConfig: Record<string, unknown> = {
 				name: parsed.name,
 				server_type: parsed.server_type,
-				image: parsed.image, // Keep as string, Hetzner API accepts both
-				location: parsed.location,
+				image: parsed.image, // Hetzner API accepts image as string (name) or number (ID)
 				start_after_create: parsed.start_after_create ?? true,
 			};
 			
-			console.log("[createServer] Calling Hetzner API with config:", serverConfig);
+			// Only include location if it's a non-empty string
+			if (parsed.location && parsed.location.trim() !== "") {
+				serverConfig.location = parsed.location;
+			}
 			
-			const result = await client.createServer(serverConfig);
+			// Only include datacenter if it's a non-empty string
+			if (parsed.datacenter && parsed.datacenter.trim() !== "") {
+				serverConfig.datacenter = parsed.datacenter;
+			}
+			
+			// Include optional fields if they exist
+			if (parsed.ssh_keys && parsed.ssh_keys.length > 0) {
+				serverConfig.ssh_keys = parsed.ssh_keys;
+			}
+			if (parsed.volumes && parsed.volumes.length > 0) {
+				serverConfig.volumes = parsed.volumes;
+			}
+			if (parsed.networks && parsed.networks.length > 0) {
+				serverConfig.networks = parsed.networks;
+			}
+			if (parsed.firewalls && parsed.firewalls.length > 0) {
+				serverConfig.firewalls = parsed.firewalls;
+			}
+			if (parsed.placement_group !== undefined) {
+				serverConfig.placement_group = parsed.placement_group;
+			}
+			if (parsed.user_data) {
+				serverConfig.user_data = parsed.user_data;
+			}
+			if (parsed.labels && Object.keys(parsed.labels).length > 0) {
+				serverConfig.labels = parsed.labels;
+			}
+			if (parsed.automount !== undefined) {
+				serverConfig.automount = parsed.automount;
+			}
+			if (parsed.public_net) {
+				serverConfig.public_net = parsed.public_net;
+			}
+			
+			console.log("[createServer] Calling Hetzner API with config:", JSON.stringify(serverConfig, null, 2));
+			
+			// Type assertion needed because we're building the config dynamically
+			const result = await client.createServer(serverConfig as CreateServerRequest);
 			
 			console.log("[createServer] Server created successfully, ID:", result.server?.id);
 			
