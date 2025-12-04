@@ -46,7 +46,7 @@ function ServerDetailComponent() {
 
 	const serverActionMutation = useMutation({
 		mutationFn: async (action: "poweron" | "poweroff" | "reboot" | "shutdown") => {
-			await (performServerAction as any)({ serverId, action });
+			await (performServerAction as any)({ data: { serverId, action } });
 		},
 		onSuccess: () => {
 			// Refetch server data after action
