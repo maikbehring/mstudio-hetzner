@@ -9,6 +9,8 @@ import {
 	ActionGroup,
 	Label,
 	FieldDescription,
+	Select,
+	Option,
 } from "@mittwald/flow-remote-react-components";
 import { useRouter } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -304,119 +306,122 @@ function CreateServerComponent() {
 			</Section>
 
 			<Section>
-				<Label>Server Type *</Label>
-				<TextField
-					value={formData.server_type}
-					onChange={(value) => {
-						setFormData({ ...formData, server_type: value });
-						setError(null);
-					}}
-					placeholder="Select or type server type (e.g., cx11)"
-					isDisabled={createMutation.isPending}
-				/>
 				{serverTypes && serverTypes.server_types.length > 0 ? (
-					<>
-						<FieldDescription>
-							Available server types: {serverTypes.server_types.map(st => st.name).join(", ")}
-						</FieldDescription>
-						<Content>
-							{serverTypes.server_types.slice(0, 10).map((st) => (
-								<Button
-									key={st.id}
-									variant="outline"
-									size="s"
-									onPress={() => {
-										setFormData({ ...formData, server_type: st.name });
-									}}
-									isDisabled={createMutation.isPending}
-								>
-									{st.name} - {st.description} ({st.cores} cores, {st.memory / 1024}GB RAM, {st.disk}GB disk)
-								</Button>
-							))}
-						</Content>
-					</>
+					<Select
+						selectedKey={formData.server_type || null}
+						onSelectionChange={(key) => {
+							if (key) {
+								setFormData({ ...formData, server_type: String(key) });
+								setError(null);
+							}
+						}}
+						isDisabled={createMutation.isPending}
+					>
+						<Label>Server Type *</Label>
+						{serverTypes.server_types.map((st) => (
+							<Option key={st.name}>
+								{st.name} - {st.description} ({st.cores} cores, {st.memory / 1024}GB RAM, {st.disk}GB disk)
+							</Option>
+						))}
+					</Select>
 				) : (
-					<FieldDescription>
-						No server types available. Please check your API token configuration.
-					</FieldDescription>
+					<>
+						<Label>Server Type *</Label>
+						<TextField
+							value={formData.server_type}
+							onChange={(value) => {
+								setFormData({ ...formData, server_type: value });
+								setError(null);
+							}}
+							placeholder="Loading server types..."
+							isDisabled={true}
+						/>
+						<FieldDescription>
+							No server types available. Please check your API token configuration.
+						</FieldDescription>
+					</>
 				)}
 			</Section>
 
 			<Section>
-				<Label>Image *</Label>
-				<TextField
-					value={formData.image}
-					onChange={(value) => {
-						setFormData({ ...formData, image: value });
-						setError(null);
-					}}
-					placeholder="Select or type image (e.g., ubuntu-22.04)"
-					isDisabled={createMutation.isPending}
-				/>
 				{images && images.images.length > 0 ? (
-					<>
-						<FieldDescription>
-							Available images: {images.images.slice(0, 10).map(img => img.name || String(img.id)).join(", ")}
-						</FieldDescription>
-						<Content>
-							{images.images.slice(0, 10).map((img) => (
-								<Button
-									key={img.id}
-									variant="outline"
-									size="s"
-									onPress={() => {
-										setFormData({ ...formData, image: img.name || String(img.id) });
-									}}
-									isDisabled={createMutation.isPending}
-								>
-									{img.name || String(img.id)} ({img.os_flavor} {img.os_version})
-								</Button>
-							))}
-						</Content>
-					</>
+					<Select
+						selectedKey={formData.image || null}
+						onSelectionChange={(key) => {
+							if (key) {
+								setFormData({ ...formData, image: String(key) });
+								setError(null);
+							}
+						}}
+						isDisabled={createMutation.isPending}
+					>
+						<Label>Image *</Label>
+						{images.images.map((img) => {
+							const imageKey = img.name || String(img.id);
+							const imageLabel = img.name 
+								? `${img.name} (${img.os_flavor} ${img.os_version})`
+								: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
+							return (
+								<Option key={imageKey}>
+									{imageLabel}
+								</Option>
+							);
+						})}
+					</Select>
 				) : (
-					<FieldDescription>
-						No images available. Please check your API token configuration.
-					</FieldDescription>
+					<>
+						<Label>Image *</Label>
+						<TextField
+							value={formData.image}
+							onChange={(value) => {
+								setFormData({ ...formData, image: value });
+								setError(null);
+							}}
+							placeholder="Loading images..."
+							isDisabled={true}
+						/>
+						<FieldDescription>
+							No images available. Please check your API token configuration.
+						</FieldDescription>
+					</>
 				)}
 			</Section>
 
 			<Section>
-				<Label>Location *</Label>
-				<TextField
-					value={formData.location}
-					onChange={(value) => {
-						setFormData({ ...formData, location: value });
-						setError(null);
-					}}
-					placeholder="Select or type location (e.g., nbg1)"
-					isDisabled={createMutation.isPending}
-				/>
 				{locations && locations.locations.length > 0 ? (
-					<>
-						<FieldDescription>
-							Available locations: {locations.locations.map(loc => `${loc.name} (${loc.city}, ${loc.country})`).join(", ")}
-						</FieldDescription>
-						<Content>
-							{locations.locations.map((loc) => (
-								<Button
-									key={loc.id}
-									variant="outline"
-									size="s"
-									onPress={() => {
-										setFormData({ ...formData, location: loc.name });
-									}}
-									isDisabled={createMutation.isPending}
-								>
-									{loc.name} - {loc.city}, {loc.country}
-								</Button>
-							))}
-						</Content>
-					</>
+					<Select
+						selectedKey={formData.location || null}
+						onSelectionChange={(key) => {
+							if (key) {
+								setFormData({ ...formData, location: String(key) });
+								setError(null);
+							}
+						}}
+						isDisabled={createMutation.isPending}
+					>
+						<Label>Location *</Label>
+						{locations.locations.map((loc) => (
+							<Option key={loc.name}>
+								{loc.name} - {loc.city}, {loc.country}
+							</Option>
+						))}
+					</Select>
 				) : (
-					<FieldDescription>
-						No locations available. Please check your API token configuration.
-					</FieldDescription>
+					<>
+						<Label>Location *</Label>
+						<TextField
+							value={formData.location}
+							onChange={(value) => {
+								setFormData({ ...formData, location: value });
+								setError(null);
+							}}
+							placeholder="Loading locations..."
+							isDisabled={true}
+						/>
+						<FieldDescription>
+							No locations available. Please check your API token configuration.
+						</FieldDescription>
+					</>
 				)}
 			</Section>
 
