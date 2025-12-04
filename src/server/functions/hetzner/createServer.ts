@@ -39,13 +39,43 @@ export const createServer = createServerFn({ method: "POST" })
 	.inputValidator(zodValidator(CreateServerSchema))
 	.middleware([verifyAccessToInstance])
 	.handler(async ({ context, data }) => {
-		const { extensionInstanceId } = context as unknown as VerifiedContext;
-		const parsed = data as z.infer<typeof CreateServerSchema>;
-		const client = await getHetznerClient(extensionInstanceId);
-		
-		const result = await client.createServer(parsed);
-		
-		// Root-Passwort wird sicher zurückgegeben (nicht geloggt)
-		return result;
+		try {
+			const { extensionInstanceId } = context as unknown as VerifiedContext;
+			const parsed = data as z.infer<typeof CreateServerSchema>;
+			
+			console.log("[createServer] Received data:", {
+				name: parsed.name,
+				server_type: parsed.server_type,
+				image: parsed.image,
+				location: parsed.location,
+			});
+			
+			const client = await getHetznerClient(extensionInstanceId);
+			
+			// Hetzner API accepts image as string (name) or number (ID)
+			// We'll pass it as-is since the API client handles both
+			const serverConfig = {
+				name: parsed.name,
+				server_type: parsed.server_type,
+				image: parsed.image, // Keep as string, Hetzner API accepts both
+				location: parsed.location,
+				start_after_create: parsed.start_after_create ?? true,
+			};
+			
+			console.log("[createServer] Calling Hetzner API with config:", serverConfig);
+			
+			const result = await client.createServer(serverConfig);
+			
+			console.log("[createServer] Server created successfully, ID:", result.server?.id);
+			
+			// Root-Passwort wird sicher zurückgegeben (nicht geloggt)
+			return result;
+		} catch (error) {
+			console.error("[createServer] Error creating server:", error);
+			if (error instanceof Error) {
+				throw new Error(`Failed to create server: ${error.message}`);
+			}
+			throw new Error("Failed to create server");
+		}
 	});
 

@@ -84,7 +84,10 @@ function CreateServerComponent() {
 
 	const createMutation = useMutation({
 		mutationFn: async (data: typeof formData) => {
+			console.log("[CreateServer] Calling createServer with data:", data);
+			// createServer expects data directly, not wrapped in { data }
 			const result = await createServer({ data });
+			console.log("[CreateServer] createServer result:", result);
 			return result;
 		},
 		onSuccess: (result) => {
