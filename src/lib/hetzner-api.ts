@@ -468,6 +468,12 @@ export class HetznerApiClient {
 		return parsed.action;
 	}
 
+	async deleteServer(serverId: number): Promise<Action> {
+		const data = await this.request<unknown>("DELETE", `/servers/${serverId}`);
+		const parsed = ActionResponseSchema.parse(data);
+		return parsed.action;
+	}
+
 	async listVolumes(): Promise<{ volumes: Volume[]; meta: { pagination: { page: number; per_page: number; previous_page: number | null; next_page: number | null; last_page: number; total_entries: number } } }> {
 		const data = await this.request<unknown>("GET", "/volumes");
 		return VolumesResponseSchema.parse(data);

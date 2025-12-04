@@ -6,12 +6,17 @@ import {
 	Badge,
 	Alert,
 	TextField,
+	Action,
+	Modal,
+	ActionGroup,
+	Section,
 } from "@mittwald/flow-remote-react-components";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { getHetznerServer } from "~/server/functions/hetzner/getServer";
 import { performServerAction } from "~/server/functions/hetzner/serverActions";
 import { createResourceNote } from "~/server/functions/hetzner/resourceNotes";
+import { deleteServer } from "~/server/functions/hetzner/deleteServer";
 import { Loader } from "~/components/Loader";
 import { ErrorMessage } from "~/components/ErrorMessage";
 import { useState } from "react";
@@ -22,6 +27,8 @@ export const Route = createFileRoute("/servers/$serverId")({
 
 function ServerDetailComponent() {
 	const { serverId } = Route.useParams();
+	const router = useRouter();
+	const queryClient = useQueryClient();
 	const [noteText, setNoteText] = useState("");
 
 	const {
@@ -57,6 +64,18 @@ function ServerDetailComponent() {
 		onSuccess: () => {
 			setNoteText("");
 			refetch();
+		},
+	});
+
+	const deleteServerMutation = useMutation({
+		mutationFn: async () => {
+			await (deleteServer as any)({ serverId });
+		},
+		onSuccess: () => {
+			// Invalidate resources list and navigate to server list
+			queryClient.invalidateQueries({ queryKey: ["hetznerResources"] });
+			queryClient.invalidateQueries({ queryKey: ["hetznerServers"] });
+			router.navigate({ to: "/servers" });
 		},
 	});
 
@@ -187,6 +206,62 @@ function ServerDetailComponent() {
 					{serverActionMutation.isPending ? "Processing..." : "Shutdown"}
 				</Button>
 			</Content>
+
+			<Heading level={3}>Danger Zone</Heading>
+			<Alert status="danger">
+				<Heading level={4}>Delete Server</Heading>
+				<Text>
+					Deleting a server is permanent and cannot be undone. All data on the server will be lost.
+					{server.protection.delete && (
+						<Text>
+							<br />
+							<strong>Note:</strong> This server is protected from deletion. You need to disable protection first.
+						</Text>
+					)}
+				</Text>
+				{server.protection.delete ? (
+					<Button
+						color="danger"
+						variant="outline"
+						isDisabled={true}
+					>
+						Server is Protected
+					</Button>
+				) : (
+					<Action action={async () => {
+						await deleteServerMutation.mutateAsync();
+					}}>
+						<Button color="danger" isDisabled={deleteServerMutation.isPending}>
+							{deleteServerMutation.isPending ? "Deleting..." : "Delete Server"}
+						</Button>
+						<Modal slot="actionConfirm">
+							<Heading>Delete Server</Heading>
+							<Section>
+								<Text>
+									Are you sure you want to delete the server <strong>{server.name}</strong>?
+								</Text>
+								<Alert status="danger">
+									<Text>
+										This action cannot be undone. All data on the server will be permanently deleted.
+									</Text>
+								</Alert>
+							</Section>
+							<ActionGroup>
+								<Action action={async () => {
+									await deleteServerMutation.mutateAsync();
+								}}>
+									<Button color="danger" isDisabled={deleteServerMutation.isPending}>
+										{deleteServerMutation.isPending ? "Deleting..." : "Delete Server"}
+									</Button>
+								</Action>
+								<Button variant="outline" onPress={() => {}}>
+									Cancel
+								</Button>
+							</ActionGroup>
+						</Modal>
+					</Action>
+				)}
+			</Alert>
 
 			{assignment && (
 				<Content>
