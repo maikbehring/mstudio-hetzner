@@ -188,23 +188,29 @@ function CreateServerComponent() {
 
 	return (
 		<Content>
-			<Heading>Create New Server</Heading>
-			<Text>
-				Configure your new Hetzner Cloud server. All fields marked with * are required.
-			</Text>
+			<Section>
+				<Heading>Create New Server</Heading>
+				<Text>
+					Configure your new Hetzner Cloud server. All fields marked with * are required.
+				</Text>
+			</Section>
 
 			{error && (
-				<Alert status="danger">
-					<Heading level={4}>Error</Heading>
-					<Text>{error}</Text>
-				</Alert>
+				<Section>
+					<Alert status="danger">
+						<Heading level={4}>Error</Heading>
+						<Text>{error}</Text>
+					</Alert>
+				</Section>
 			)}
 
 			{createMutation.isPending && (
-				<Alert status="info">
-					<Heading level={4}>Creating Server...</Heading>
-					<Text>Please wait while your server is being created. This may take a few moments.</Text>
-				</Alert>
+				<Section>
+					<Alert status="info">
+						<Heading level={4}>Creating Server...</Heading>
+						<Text>Please wait while your server is being created. This may take a few moments.</Text>
+					</Alert>
+				</Section>
 			)}
 
 			<Section>
