@@ -357,7 +357,8 @@ function CreateServerComponent() {
 					>
 						<Label>Image *</Label>
 						{images.images.map((img) => {
-							const imageKey = img.name || String(img.id);
+							// Use ID as key to ensure uniqueness (multiple images can have the same name)
+							const imageKey = String(img.id);
 							const imageLabel = img.name 
 								? `${img.name} (${img.os_flavor} ${img.os_version})`
 								: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
