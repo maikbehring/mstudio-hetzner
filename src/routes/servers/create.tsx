@@ -25,6 +25,7 @@ export const Route = createFileRoute("/servers/create")({
 });
 
 function CreateServerComponent() {
+	console.log("[CreateServer] Component rendering");
 	const router = useRouter();
 	const queryClient = useQueryClient();
 	const [error, setError] = useState<string | null>(null);
@@ -132,6 +133,7 @@ function CreateServerComponent() {
 	const hasError = serverTypesError || imagesError || locationsError;
 
 	if (isLoading) {
+		console.log("[CreateServer] Still loading data");
 		return (
 			<Content>
 				<Section>
@@ -139,11 +141,11 @@ function CreateServerComponent() {
 					<Loader />
 					<Text>Loading server types, images, and locations...</Text>
 					<Text>
-						Server Types: {serverTypesLoading ? "Loading..." : "Loaded"}
+						Server Types: {serverTypesLoading ? "Loading..." : serverTypes ? "Loaded" : "Not loaded"}
 						<br />
-						Images: {imagesLoading ? "Loading..." : "Loaded"}
+						Images: {imagesLoading ? "Loading..." : images ? "Loaded" : "Not loaded"}
 						<br />
-						Locations: {locationsLoading ? "Loading..." : "Loaded"}
+						Locations: {locationsLoading ? "Loading..." : locations ? "Loaded" : "Not loaded"}
 					</Text>
 				</Section>
 			</Content>
@@ -242,6 +244,10 @@ function CreateServerComponent() {
 		images: images ? `${images.images?.length || 0} images` : "null",
 		locations: locations ? `${locations.locations?.length || 0} locations` : "null",
 		formData,
+		hasError,
+		serverTypesError: serverTypesError ? String(serverTypesError) : null,
+		imagesError: imagesError ? String(imagesError) : null,
+		locationsError: locationsError ? String(locationsError) : null,
 	});
 
 	return (
