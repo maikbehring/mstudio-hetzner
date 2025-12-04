@@ -41,17 +41,44 @@ function CreateServerComponent() {
 	// Load data for dropdowns
 	const { data: serverTypes, isLoading: serverTypesLoading, error: serverTypesError } = useQuery({
 		queryKey: ["serverTypes"],
-		queryFn: () => getServerTypes(),
+		queryFn: async () => {
+			try {
+				const result = await getServerTypes();
+				console.log("[CreateServer] Server types loaded:", result);
+				return result;
+			} catch (error) {
+				console.error("[CreateServer] Error loading server types:", error);
+				throw error;
+			}
+		},
 	});
 
 	const { data: images, isLoading: imagesLoading, error: imagesError } = useQuery({
 		queryKey: ["systemImages"],
-		queryFn: () => getSystemImages(),
+		queryFn: async () => {
+			try {
+				const result = await getSystemImages();
+				console.log("[CreateServer] Images loaded:", result);
+				return result;
+			} catch (error) {
+				console.error("[CreateServer] Error loading images:", error);
+				throw error;
+			}
+		},
 	});
 
 	const { data: locations, isLoading: locationsLoading, error: locationsError } = useQuery({
 		queryKey: ["locations"],
-		queryFn: () => getLocations(),
+		queryFn: async () => {
+			try {
+				const result = await getLocations();
+				console.log("[CreateServer] Locations loaded:", result);
+				return result;
+			} catch (error) {
+				console.error("[CreateServer] Error loading locations:", error);
+				throw error;
+			}
+		},
 	});
 
 	const createMutation = useMutation({
@@ -107,8 +134,18 @@ function CreateServerComponent() {
 	if (isLoading) {
 		return (
 			<Content>
-				<Loader />
-				<Text>Loading server types, images, and locations...</Text>
+				<Section>
+					<Heading>Create New Server</Heading>
+					<Loader />
+					<Text>Loading server types, images, and locations...</Text>
+					<Text>
+						Server Types: {serverTypesLoading ? "Loading..." : "Loaded"}
+						<br />
+						Images: {imagesLoading ? "Loading..." : "Loaded"}
+						<br />
+						Locations: {locationsLoading ? "Loading..." : "Loaded"}
+					</Text>
+				</Section>
 			</Content>
 		);
 	}
@@ -116,23 +153,36 @@ function CreateServerComponent() {
 	if (hasError) {
 		return (
 			<Content>
-				<Heading>Error Loading Data</Heading>
-				<Alert status="danger">
-					<Heading level={4}>Failed to load server creation data</Heading>
-					<Text>
-						{serverTypesError && `Server Types: ${serverTypesError instanceof Error ? serverTypesError.message : String(serverTypesError)}`}
-						{imagesError && `Images: ${imagesError instanceof Error ? imagesError.message : String(imagesError)}`}
-						{locationsError && `Locations: ${locationsError instanceof Error ? locationsError.message : String(locationsError)}`}
-					</Text>
-					<Button
-						variant="outline"
-						onPress={() => {
-							router.navigate({ to: "/" });
-						}}
-					>
-						Go Back
-					</Button>
-				</Alert>
+				<Section>
+					<Heading>Error Loading Data</Heading>
+					<Alert status="danger">
+						<Heading level={4}>Failed to load server creation data</Heading>
+						<Text>
+							{serverTypesError && `Server Types: ${serverTypesError instanceof Error ? serverTypesError.message : String(serverTypesError)}`}
+							{imagesError && `Images: ${imagesError instanceof Error ? imagesError.message : String(imagesError)}`}
+							{locationsError && `Locations: ${locationsError instanceof Error ? locationsError.message : String(locationsError)}`}
+						</Text>
+					</Alert>
+					<ActionGroup>
+						<Button
+							variant="outline"
+							onPress={() => {
+								router.navigate({ to: "/" });
+							}}
+						>
+							Go Back
+						</Button>
+						<Button
+							onPress={() => {
+								queryClient.invalidateQueries({ queryKey: ["serverTypes"] });
+								queryClient.invalidateQueries({ queryKey: ["systemImages"] });
+								queryClient.invalidateQueries({ queryKey: ["locations"] });
+							}}
+						>
+							Retry
+						</Button>
+					</ActionGroup>
+				</Section>
 			</Content>
 		);
 	}
@@ -186,6 +236,14 @@ function CreateServerComponent() {
 		);
 	}
 
+	// Debug: Log current state
+	console.log("[CreateServer] Rendering form:", {
+		serverTypes: serverTypes ? `${serverTypes.server_types?.length || 0} types` : "null",
+		images: images ? `${images.images?.length || 0} images` : "null",
+		locations: locations ? `${locations.locations?.length || 0} locations` : "null",
+		formData,
+	});
+
 	return (
 		<Content>
 			<Section>
@@ -193,6 +251,13 @@ function CreateServerComponent() {
 				<Text>
 					Configure your new Hetzner Cloud server. All fields marked with * are required.
 				</Text>
+				{(!serverTypes || !images || !locations) && (
+					<Alert status="warning">
+						<Text>
+							Some data is still loading. Server Types: {serverTypes ? "✓" : "Loading..."}, Images: {images ? "✓" : "Loading..."}, Locations: {locations ? "✓" : "Loading..."}
+						</Text>
+					</Alert>
+				)}
 			</Section>
 
 			{error && (
