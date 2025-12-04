@@ -48,7 +48,14 @@ function ServersComponent() {
 
 	return (
 		<Content>
-			<Heading>Hetzner Cloud Servers</Heading>
+			<Content>
+				<Heading>Hetzner Cloud Servers</Heading>
+				<Button
+					onPress={() => router.navigate({ to: "/servers/create" })}
+				>
+					Create New Server
+				</Button>
+			</Content>
 			<Text>
 				Total: {servers.length} server{servers.length !== 1 ? "s" : ""}
 			</Text>
