@@ -119,42 +119,6 @@ function CreateServerComponent() {
 		});
 	}, [images, formData.server_type]);
 
-	// Create mapping from label text to image ID
-	// Select returns the label text, not the key, so we need to map it back to the ID
-	// Only include compatible images in the map
-	const imageLabelToIdMap = useMemo(() => {
-		if (!compatibleImages) return new Map<string, string>();
-		const map = new Map<string, string>();
-		compatibleImages.forEach((img) => {
-			const imageLabel = img.name 
-				? `${img.name} (${img.os_flavor} ${img.os_version})`
-				: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
-			map.set(imageLabel, String(img.id));
-		});
-		return map;
-	}, [compatibleImages]);
-
-	// Create mapping from server type label text to server type name
-	const serverTypeLabelToNameMap = useMemo(() => {
-		if (!serverTypes?.server_types) return new Map<string, string>();
-		const map = new Map<string, string>();
-		serverTypes.server_types.forEach((st) => {
-			const serverTypeLabel = `${st.name} - ${st.description} (${st.cores} cores, ${st.memory / 1024}GB RAM, ${st.disk}GB disk)`;
-			map.set(serverTypeLabel, st.name);
-		});
-		return map;
-	}, [serverTypes]);
-
-	// Create mapping from location label text to location name
-	const locationLabelToNameMap = useMemo(() => {
-		if (!locations?.locations) return new Map<string, string>();
-		const map = new Map<string, string>();
-		locations.locations.forEach((loc) => {
-			const locationLabel = `${loc.name} - ${loc.city}, ${loc.country}`;
-			map.set(locationLabel, loc.name);
-		});
-		return map;
-	}, [locations]);
 
 	const createMutation = useMutation({
 		mutationFn: async (data: typeof formData) => {
@@ -380,37 +344,25 @@ function CreateServerComponent() {
 			<Section>
 				{serverTypes && serverTypes.server_types.length > 0 ? (
 					<Select
-						selectedKey={formData.server_type ? (() => {
-							// Find the label for the selected server type name
-							const selectedServerType = serverTypes.server_types.find(st => st.name === formData.server_type);
-							return selectedServerType 
-								? `${selectedServerType.name} - ${selectedServerType.description} (${selectedServerType.cores} cores, ${selectedServerType.memory / 1024}GB RAM, ${selectedServerType.disk}GB disk)`
-								: null;
-						})() : null}
-						onSelectionChange={(selectedText) => {
-							if (selectedText) {
-								// Select returns the label text, not the key
-								// Map it back to the server type name
-								const serverTypeName = serverTypeLabelToNameMap.get(String(selectedText));
-								if (serverTypeName) {
-									// Check if currently selected image is compatible with new server type
-									const newServerArchitecture = getServerTypeArchitecture(serverTypeName);
-									const currentImage = images?.images.find(img => String(img.id) === formData.image);
-									const isCurrentImageCompatible = currentImage 
-										? getImageArchitecture(currentImage) === newServerArchitecture
-										: true;
-									
-									setFormData({ 
-										...formData, 
-										server_type: serverTypeName,
-										// Reset image if it's not compatible with the new server type
-										image: isCurrentImageCompatible ? formData.image : "",
-									});
-									setError(null);
-								} else {
-									console.error("[CreateServer] Could not find server type name for label:", selectedText);
-									setError("Invalid server type selection");
-								}
+						selectedKey={formData.server_type || undefined}
+						onSelectionChange={(selectedKey) => {
+							if (selectedKey) {
+								// selectedKey should be the server type name
+								const serverTypeName = String(selectedKey);
+								// Check if currently selected image is compatible with new server type
+								const newServerArchitecture = getServerTypeArchitecture(serverTypeName);
+								const currentImage = images?.images.find(img => String(img.id) === formData.image);
+								const isCurrentImageCompatible = currentImage 
+									? getImageArchitecture(currentImage) === newServerArchitecture
+									: true;
+								
+								setFormData({ 
+									...formData, 
+									server_type: serverTypeName,
+									// Reset image if it's not compatible with the new server type
+									image: isCurrentImageCompatible ? formData.image : "",
+								});
+								setError(null);
 							}
 						}}
 						isDisabled={createMutation.isPending}
@@ -448,27 +400,12 @@ function CreateServerComponent() {
 				{images && compatibleImages.length > 0 ? (
 					<>
 						<Select
-							selectedKey={formData.image ? (() => {
-								// Find the label for the selected image ID (only in compatible images)
-								const selectedImage = compatibleImages.find(img => String(img.id) === formData.image);
-								return selectedImage 
-									? (selectedImage.name 
-										? `${selectedImage.name} (${selectedImage.os_flavor} ${selectedImage.os_version})`
-										: `${selectedImage.os_flavor} ${selectedImage.os_version} (ID: ${selectedImage.id})`)
-									: null;
-							})() : null}
-							onSelectionChange={(selectedText) => {
-								if (selectedText) {
-									// Select returns the label text, not the key
-									// Map it back to the image ID
-									const imageId = imageLabelToIdMap.get(String(selectedText));
-									if (imageId) {
-										setFormData({ ...formData, image: imageId });
-										setError(null);
-									} else {
-										console.error("[CreateServer] Could not find image ID for label:", selectedText);
-										setError("Invalid image selection");
-									}
+							selectedKey={formData.image || undefined}
+							onSelectionChange={(selectedKey) => {
+								if (selectedKey) {
+									// selectedKey should be the image ID (string)
+									setFormData({ ...formData, image: String(selectedKey) });
+									setError(null);
 								}
 							}}
 							isDisabled={createMutation.isPending || !formData.server_type}
@@ -547,25 +484,12 @@ function CreateServerComponent() {
 			<Section>
 				{locations && locations.locations.length > 0 ? (
 					<Select
-						selectedKey={formData.location ? (() => {
-							// Find the label for the selected location name
-							const selectedLocation = locations.locations.find(loc => loc.name === formData.location);
-							return selectedLocation 
-								? `${selectedLocation.name} - ${selectedLocation.city}, ${selectedLocation.country}`
-								: null;
-						})() : null}
-						onSelectionChange={(selectedText) => {
-							if (selectedText) {
-								// Select returns the label text, not the key
-								// Map it back to the location name
-								const locationName = locationLabelToNameMap.get(String(selectedText));
-								if (locationName) {
-									setFormData({ ...formData, location: locationName });
-									setError(null);
-								} else {
-									console.error("[CreateServer] Could not find location name for label:", selectedText);
-									setError("Invalid location selection");
-								}
+						selectedKey={formData.location || undefined}
+						onSelectionChange={(selectedKey) => {
+							if (selectedKey) {
+								// selectedKey should be the location name
+								setFormData({ ...formData, location: String(selectedKey) });
+								setError(null);
 							}
 						}}
 						isDisabled={createMutation.isPending}
