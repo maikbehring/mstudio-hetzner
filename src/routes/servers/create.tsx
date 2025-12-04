@@ -113,10 +113,18 @@ function CreateServerComponent() {
 			return images?.images || [];
 		}
 		const serverArchitecture = getServerTypeArchitecture(formData.server_type);
-		return images.images.filter((img) => {
+		const filtered = images.images.filter((img) => {
 			const imageArchitecture = getImageArchitecture(img);
 			return imageArchitecture === serverArchitecture;
 		});
+		console.log("[CreateServer] Filtered images:", {
+			total: images.images.length,
+			compatible: filtered.length,
+			serverType: formData.server_type,
+			serverArchitecture,
+			compatibleImageIds: filtered.map(img => img.id),
+		});
+		return filtered;
 	}, [images, formData.server_type]);
 
 
@@ -402,28 +410,43 @@ function CreateServerComponent() {
 						<Select
 							selectedKey={formData.image || undefined}
 							onSelectionChange={(selectedKey) => {
-								if (selectedKey) {
+								console.log("[CreateServer] Image selection changed:", selectedKey, "Type:", typeof selectedKey);
+								if (selectedKey !== null && selectedKey !== undefined) {
 									// selectedKey should be the image ID (string)
-									setFormData({ ...formData, image: String(selectedKey) });
+									const imageId = String(selectedKey);
+									console.log("[CreateServer] Setting image to:", imageId);
+									setFormData({ ...formData, image: imageId });
 									setError(null);
 								}
 							}}
 							isDisabled={createMutation.isPending || !formData.server_type}
 						>
 							<Label>Image *</Label>
-							{compatibleImages.map((img) => {
-								// Use ID as key to ensure uniqueness (multiple images can have the same name)
-								const imageKey = String(img.id);
-								const imageLabel = img.name 
-									? `${img.name} (${img.os_flavor} ${img.os_version})`
-									: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
-								return (
-									<Option key={imageKey}>
-										{imageLabel}
-									</Option>
-								);
-							})}
+							{compatibleImages.length > 0 ? (
+								compatibleImages.map((img) => {
+									// Use ID as key to ensure uniqueness (multiple images can have the same name)
+									const imageKey = String(img.id);
+									const imageLabel = img.name 
+										? `${img.name} (${img.os_flavor} ${img.os_version})`
+										: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
+									console.log("[CreateServer] Rendering Option:", { key: imageKey, label: imageLabel });
+									return (
+										<Option key={imageKey}>
+											{imageLabel}
+										</Option>
+									);
+								})
+							) : (
+								<Option key="no-images" isDisabled>
+									No compatible images available
+								</Option>
+							)}
 						</Select>
+						{process.env.NODE_ENV === "development" && (
+							<FieldDescription>
+								Debug: compatibleImages.length={compatibleImages.length}, formData.image={formData.image}, formData.server_type={formData.server_type}
+							</FieldDescription>
+						)}
 						{formData.server_type && compatibleImages.length < images.images.length && (
 							<FieldDescription>
 								Showing {compatibleImages.length} of {images.images.length} images compatible with {formData.server_type} ({getServerTypeArchitecture(formData.server_type).toUpperCase()} architecture).
