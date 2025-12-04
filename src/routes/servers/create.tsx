@@ -112,18 +112,33 @@ function CreateServerComponent() {
 		return "x86";
 	};
 
+	// Check if formData.server_type is a valid server type name (handles both name and label)
+	const isValidServerTypeName = useMemo(() => {
+		if (!formData.server_type || !serverTypes?.server_types) return false;
+		// Extract server type name from label if it's a full label
+		const serverTypeName = formData.server_type.includes(" - ")
+			? formData.server_type.split(" - ")[0]
+			: formData.server_type;
+		// Check if the extracted name matches any server type name
+		return serverTypes.server_types.some(st => st.name === serverTypeName);
+	}, [formData.server_type, serverTypes]);
+
 	// Filter images based on selected server type architecture
 	const compatibleImages = useMemo(() => {
-		if (!images?.images || !formData.server_type) {
+		if (!images?.images || !formData.server_type || !isValidServerTypeName) {
 			return images?.images || [];
 		}
-		const serverArchitecture = getServerTypeArchitecture(formData.server_type);
+		// Extract server type name from label if needed
+		const serverTypeName = formData.server_type.includes(" - ")
+			? formData.server_type.split(" - ")[0]
+			: formData.server_type;
+		const serverArchitecture = getServerTypeArchitecture(serverTypeName);
 		const filtered = images.images.filter((img) => {
 			const imageArchitecture = getImageArchitecture(img);
 			return imageArchitecture === serverArchitecture;
 		});
 		return filtered;
-	}, [images, formData.server_type]);
+	}, [images, formData.server_type, isValidServerTypeName]);
 
 
 	const createMutation = useMutation({
@@ -350,11 +365,36 @@ function CreateServerComponent() {
 			<Section>
 				{serverTypes && serverTypes.server_types.length > 0 ? (
 					<Select
-						selectedKey={formData.server_type || undefined}
+						selectedKey={(() => {
+							// Extract server type name from formData.server_type if it's a label
+							if (!formData.server_type) return undefined;
+							const serverTypeName = formData.server_type.includes(" - ")
+								? formData.server_type.split(" - ")[0]
+								: formData.server_type;
+							// Verify it's a valid server type name
+							return serverTypes.server_types.some(st => st.name === serverTypeName) ? serverTypeName : undefined;
+						})()}
 						onSelectionChange={(selectedKey) => {
 							if (selectedKey) {
-								// selectedKey should be the server type name (the key prop value)
-								const serverTypeName = String(selectedKey);
+								// selectedKey might be the label text or the key
+								// Extract server type name from label if needed
+								const selectedValue = String(selectedKey);
+								let serverTypeName: string;
+								
+								if (selectedValue.includes(" - ")) {
+									// It's a label, extract the name
+									serverTypeName = selectedValue.split(" - ")[0];
+								} else {
+									// It's already the name
+									serverTypeName = selectedValue;
+								}
+								
+								// Verify it's a valid server type name
+								if (!serverTypes.server_types.some(st => st.name === serverTypeName)) {
+									console.error("[CreateServer] Invalid server type name:", serverTypeName);
+									setError("Invalid server type selection");
+									return;
+								}
 								
 								// Check if currently selected image is compatible with new server type
 								const newServerArchitecture = getServerTypeArchitecture(serverTypeName);
@@ -416,7 +456,7 @@ function CreateServerComponent() {
 									setError(null);
 								}
 							}}
-							isDisabled={createMutation.isPending || !formData.server_type || compatibleImages.length === 0}
+							isDisabled={createMutation.isPending || !isValidServerTypeName || compatibleImages.length === 0}
 						>
 							<Label>Image *</Label>
 							{compatibleImages.map((img) => {
@@ -434,7 +474,17 @@ function CreateServerComponent() {
 						</Select>
 						{formData.server_type && compatibleImages.length < images.images.length && (
 							<FieldDescription>
-								Showing {compatibleImages.length} of {images.images.length} images compatible with {formData.server_type} ({getServerTypeArchitecture(formData.server_type).toUpperCase()} architecture).
+								Showing {compatibleImages.length} of {images.images.length} images compatible with {(() => {
+									const serverTypeName = formData.server_type.includes(" - ")
+										? formData.server_type.split(" - ")[0]
+										: formData.server_type;
+									return serverTypeName;
+								})()} ({(() => {
+									const serverTypeName = formData.server_type.includes(" - ")
+										? formData.server_type.split(" - ")[0]
+										: formData.server_type;
+									return getServerTypeArchitecture(serverTypeName).toUpperCase();
+								})()} architecture).
 							</FieldDescription>
 						)}
 					</>
