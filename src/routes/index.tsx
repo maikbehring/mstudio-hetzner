@@ -153,7 +153,14 @@ function DashboardComponent() {
 	return (
 		<Content>
 			<Section>
-				<Heading>Hetzner Cloud Dashboard</Heading>
+				<Content>
+					<Heading>Hetzner Cloud Dashboard</Heading>
+					<Button
+						onPress={() => router.navigate({ to: "/servers/create" })}
+					>
+						Create New Server
+					</Button>
+				</Content>
 				<Text>
 					Overview of all your Hetzner Cloud resources
 				</Text>

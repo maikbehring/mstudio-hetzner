@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ServersRouteImport } from './routes/servers'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ServersCreateRouteImport } from './routes/servers/create'
 import { Route as ServersServerIdRouteImport } from './routes/servers/$serverId'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -29,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ServersCreateRoute = ServersCreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => ServersRoute,
+} as any)
 const ServersServerIdRoute = ServersServerIdRouteImport.update({
   id: '/$serverId',
   path: '/$serverId',
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/servers': typeof ServersRouteWithChildren
   '/settings': typeof SettingsRoute
   '/servers/$serverId': typeof ServersServerIdRoute
+  '/servers/create': typeof ServersCreateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/servers': typeof ServersRouteWithChildren
   '/settings': typeof SettingsRoute
   '/servers/$serverId': typeof ServersServerIdRoute
+  '/servers/create': typeof ServersCreateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,25 @@ export interface FileRoutesById {
   '/servers': typeof ServersRouteWithChildren
   '/settings': typeof SettingsRoute
   '/servers/$serverId': typeof ServersServerIdRoute
+  '/servers/create': typeof ServersCreateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/servers' | '/settings' | '/servers/$serverId'
+  fullPaths:
+    | '/'
+    | '/servers'
+    | '/settings'
+    | '/servers/$serverId'
+    | '/servers/create'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/servers' | '/settings' | '/servers/$serverId'
-  id: '__root__' | '/' | '/servers' | '/settings' | '/servers/$serverId'
+  to: '/' | '/servers' | '/settings' | '/servers/$serverId' | '/servers/create'
+  id:
+    | '__root__'
+    | '/'
+    | '/servers'
+    | '/settings'
+    | '/servers/$serverId'
+    | '/servers/create'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -91,6 +111,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/servers/create': {
+      id: '/servers/create'
+      path: '/create'
+      fullPath: '/servers/create'
+      preLoaderRoute: typeof ServersCreateRouteImport
+      parentRoute: typeof ServersRoute
+    }
     '/servers/$serverId': {
       id: '/servers/$serverId'
       path: '/$serverId'
@@ -103,10 +130,12 @@ declare module '@tanstack/react-router' {
 
 interface ServersRouteChildren {
   ServersServerIdRoute: typeof ServersServerIdRoute
+  ServersCreateRoute: typeof ServersCreateRoute
 }
 
 const ServersRouteChildren: ServersRouteChildren = {
   ServersServerIdRoute: ServersServerIdRoute,
+  ServersCreateRoute: ServersCreateRoute,
 }
 
 const ServersRouteWithChildren =
