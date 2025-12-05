@@ -9,8 +9,6 @@ import {
 	ActionGroup,
 	Label,
 	FieldDescription,
-	Select,
-	Option,
 } from "@mittwald/flow-remote-react-components";
 import { useRouter } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,7 +25,6 @@ export const Route = createFileRoute("/servers/create")({
 });
 
 function CreateServerComponent() {
-	console.log("[CreateServer] Component rendering");
 	const router = useRouter();
 	const queryClient = useQueryClient();
 	const [error, setError] = useState<string | null>(null);
@@ -41,161 +38,87 @@ function CreateServerComponent() {
 		start_after_create: true,
 	});
 
-	// Load data for dropdowns
+	// Load data
 	const { data: serverTypes, isLoading: serverTypesLoading, error: serverTypesError } = useQuery({
 		queryKey: ["serverTypes"],
 		queryFn: async () => {
-			try {
-				const result = await getServerTypes();
-				console.log("[CreateServer] Server types loaded:", result);
-				return result;
-			} catch (error) {
-				console.error("[CreateServer] Error loading server types:", error);
-				throw error;
-			}
+			const result = await getServerTypes();
+			return result;
 		},
 	});
 
 	const { data: images, isLoading: imagesLoading, error: imagesError } = useQuery({
 		queryKey: ["systemImages"],
 		queryFn: async () => {
-			try {
-				const result = await getSystemImages();
-				console.log("[CreateServer] Images loaded:", result);
-				return result;
-			} catch (error) {
-				console.error("[CreateServer] Error loading images:", error);
-				throw error;
-			}
+			const result = await getSystemImages();
+			return result;
 		},
 	});
 
 	const { data: locations, isLoading: locationsLoading, error: locationsError } = useQuery({
 		queryKey: ["locations"],
 		queryFn: async () => {
-			try {
-				const result = await getLocations();
-				console.log("[CreateServer] Locations loaded:", result);
-				return result;
-			} catch (error) {
-				console.error("[CreateServer] Error loading locations:", error);
-				throw error;
-			}
+			const result = await getLocations();
+			return result;
 		},
 	});
 
 	// Helper function to determine server type architecture
-	// Server types starting with "ca" (e.g., "cax11", "cpx11") are ARM-based
-	// All others are x86-based
-	// Handles both server type name (e.g., "cpx21") and full label text
-	const getServerTypeArchitecture = (serverTypeNameOrLabel: string): "x86" | "arm" => {
-		// Extract server type name from label if it's a full label (e.g., "cpx21 - CPX 21...")
-		const serverTypeName = serverTypeNameOrLabel.includes(" - ") 
-			? serverTypeNameOrLabel.split(" - ")[0] 
-			: serverTypeNameOrLabel;
+	const getServerTypeArchitecture = (serverTypeName: string): "x86" | "arm" => {
 		return serverTypeName.startsWith("ca") ? "arm" : "x86";
 	};
 
 	// Helper function to determine image architecture
-	// First check if architecture is explicitly provided in the API response
-	// Otherwise, infer from image name or OS flavor
 	const getImageArchitecture = (image: { architecture?: "x86" | "arm"; name?: string | null; os_flavor?: string | null }): "x86" | "arm" => {
-		// If architecture is explicitly provided, use it
 		if (image.architecture) {
 			return image.architecture;
 		}
-		// Otherwise, default to x86 (most images are x86)
-		// ARM images typically have "arm" in their name or are explicitly marked
 		if (image.name?.toLowerCase().includes("arm") || image.os_flavor?.toLowerCase().includes("arm")) {
 			return "arm";
 		}
 		return "x86";
 	};
 
-	// Check if formData.server_type is a valid server type name (handles both name and label)
-	const isValidServerTypeName = useMemo(() => {
-		if (!formData.server_type || !serverTypes?.server_types) return false;
-		// Extract server type name from label if it's a full label
-		const serverTypeName = formData.server_type.includes(" - ")
-			? formData.server_type.split(" - ")[0]
-			: formData.server_type;
-		// Check if the extracted name matches any server type name
-		return serverTypes.server_types.some(st => st.name === serverTypeName);
-	}, [formData.server_type, serverTypes]);
-
 	// Filter images based on selected server type architecture
 	const compatibleImages = useMemo(() => {
-		if (!images?.images || !formData.server_type || !isValidServerTypeName) {
+		if (!images?.images || !formData.server_type) {
 			return images?.images || [];
 		}
-		// Extract server type name from label if needed
-		const serverTypeName = formData.server_type.includes(" - ")
-			? formData.server_type.split(" - ")[0]
-			: formData.server_type;
-		const serverArchitecture = getServerTypeArchitecture(serverTypeName);
-		const filtered = images.images.filter((img) => {
+		const serverArchitecture = getServerTypeArchitecture(formData.server_type);
+		return images.images.filter((img) => {
 			const imageArchitecture = getImageArchitecture(img);
 			return imageArchitecture === serverArchitecture;
 		});
-		return filtered;
-	}, [images, formData.server_type, isValidServerTypeName]);
-
+	}, [images, formData.server_type]);
 
 	const createMutation = useMutation({
 		mutationFn: async (data: typeof formData) => {
-			console.log("[CreateServer] Calling createServer with data:", data);
-			
-			// Ensure image is the ID, not the label text
-			let imageId = data.image;
-			if (imageId && !/^\d+$/.test(imageId)) {
-				// It's not a numeric ID, try to find the image by label
-				const matchingImage = images?.images.find((img) => {
-					const imageLabel = img.name 
-						? `${img.name} (${img.os_flavor} ${img.os_version})`
-						: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
-					return imageLabel === imageId;
-				});
-				if (matchingImage) {
-					imageId = String(matchingImage.id);
-				} else {
-					throw new Error("Invalid image selection");
-				}
+			if (!data.server_type || !data.image || !data.location) {
+				throw new Error("Please select all required fields");
 			}
-			
-			// Ensure location is the name, not the label text
-			let locationName = data.location;
-			if (locationName && locationName.includes(" - ")) {
-				locationName = locationName.split(" - ")[0];
-			}
-			
-			// Prepare clean data for server function
+
 			const cleanData = {
-				...data,
-				image: imageId,
-				location: locationName,
+				name: data.name,
+				server_type: data.server_type,
+				image: data.image,
+				location: data.location,
+				start_after_create: data.start_after_create,
 			};
-			
-			console.log("[CreateServer] Cleaned data for server:", cleanData);
-			
-			// createServer expects data wrapped in { data }
+
 			const result = await createServer({ data: cleanData });
-			console.log("[CreateServer] createServer result:", result);
 			return result;
 		},
 		onSuccess: (result) => {
-			// Show root password if provided
 			if (result.root_password) {
 				setRootPassword(result.root_password);
 			}
-			// Invalidate resources to refresh list
 			queryClient.invalidateQueries({ queryKey: ["hetznerResources"] });
-			// Navigate to server detail after a short delay
 			setTimeout(() => {
 				router.navigate({ 
 					to: "/servers/$serverId", 
 					params: { serverId: String(result.server.id) } 
 				});
-			}, rootPassword ? 5000 : 2000); // Give user time to copy password
+			}, rootPassword ? 5000 : 2000);
 		},
 		onError: (err: Error) => {
 			setError(err.message);
@@ -228,20 +151,12 @@ function CreateServerComponent() {
 	const hasError = serverTypesError || imagesError || locationsError;
 
 	if (isLoading) {
-		console.log("[CreateServer] Still loading data");
 		return (
 			<Content>
 				<Section>
 					<Heading>Create New Server</Heading>
 					<Loader />
 					<Text>Loading server types, images, and locations...</Text>
-					<Text>
-						Server Types: {serverTypesLoading ? "Loading..." : serverTypes ? "Loaded" : "Not loaded"}
-						<br />
-						Images: {imagesLoading ? "Loading..." : images ? "Loaded" : "Not loaded"}
-						<br />
-						Locations: {locationsLoading ? "Loading..." : locations ? "Loaded" : "Not loaded"}
-					</Text>
 				</Section>
 			</Content>
 		);
@@ -261,12 +176,7 @@ function CreateServerComponent() {
 						</Text>
 					</Alert>
 					<ActionGroup>
-						<Button
-							variant="outline"
-							onPress={() => {
-								router.navigate({ to: "/" });
-							}}
-						>
+						<Button variant="outline" onPress={() => router.navigate({ to: "/" })}>
 							Go Back
 						</Button>
 						<Button
@@ -284,7 +194,6 @@ function CreateServerComponent() {
 		);
 	}
 
-	// Root password modal
 	if (rootPassword) {
 		return (
 			<Content>
@@ -333,18 +242,6 @@ function CreateServerComponent() {
 		);
 	}
 
-	// Debug: Log current state
-	console.log("[CreateServer] Rendering form:", {
-		serverTypes: serverTypes ? `${serverTypes.server_types?.length || 0} types` : "null",
-		images: images ? `${images.images?.length || 0} images` : "null",
-		locations: locations ? `${locations.locations?.length || 0} locations` : "null",
-		formData,
-		hasError,
-		serverTypesError: serverTypesError ? String(serverTypesError) : null,
-		imagesError: imagesError ? String(imagesError) : null,
-		locationsError: locationsError ? String(locationsError) : null,
-	});
-
 	return (
 		<Content>
 			<Section>
@@ -352,13 +249,6 @@ function CreateServerComponent() {
 				<Text>
 					Configure your new Hetzner Cloud server. All fields marked with * are required.
 				</Text>
-				{(!serverTypes || !images || !locations) && (
-					<Alert status="warning">
-						<Text>
-							Some data is still loading. Server Types: {serverTypes ? "✓" : "Loading..."}, Images: {images ? "✓" : "Loading..."}, Locations: {locations ? "✓" : "Loading..."}
-						</Text>
-					</Alert>
-				)}
 			</Section>
 
 			{error && (
@@ -393,82 +283,54 @@ function CreateServerComponent() {
 				<FieldDescription>
 					Only lowercase letters, numbers, hyphens, and dots allowed. Invalid characters will be automatically cleaned.
 				</FieldDescription>
-				<FieldDescription>
-					Must be unique and a valid hostname (RFC 1123). Only letters, numbers, dots, and dashes allowed.
-				</FieldDescription>
 			</Section>
 
 			<Section>
+				<Label>Server Type *</Label>
 				{serverTypes && serverTypes.server_types.length > 0 ? (
-					<Select
-						selectedKey={(() => {
-							// Extract server type name from formData.server_type if it's a label
-							if (!formData.server_type) return undefined;
-							const serverTypeName = formData.server_type.includes(" - ")
-								? formData.server_type.split(" - ")[0]
-								: formData.server_type;
-							// Verify it's a valid server type name
-							return serverTypes.server_types.some(st => st.name === serverTypeName) ? serverTypeName : undefined;
-						})()}
-						onSelectionChange={(selectedKey) => {
-							if (selectedKey) {
-								// selectedKey might be the label text or the key
-								// Extract server type name from label if needed
-								const selectedValue = String(selectedKey);
-								let serverTypeName: string;
-								
-								if (selectedValue.includes(" - ")) {
-									// It's a label, extract the name
-									serverTypeName = selectedValue.split(" - ")[0];
-								} else {
-									// It's already the name
-									serverTypeName = selectedValue;
-								}
-								
-								// Verify it's a valid server type name
-								if (!serverTypes.server_types.some(st => st.name === serverTypeName)) {
-									console.error("[CreateServer] Invalid server type name:", serverTypeName);
-									setError("Invalid server type selection");
-									return;
-								}
-								
-								// Check if currently selected image is compatible with new server type
-								const newServerArchitecture = getServerTypeArchitecture(serverTypeName);
-								const currentImage = images?.images.find(img => String(img.id) === formData.image);
-								const isCurrentImageCompatible = currentImage 
-									? getImageArchitecture(currentImage) === newServerArchitecture
-									: true;
-								
-								setFormData({ 
-									...formData, 
-									server_type: serverTypeName, // Store only the name, not the label
-									// Reset image if it's not compatible with the new server type
-									image: isCurrentImageCompatible ? formData.image : "",
-								});
-								setError(null);
-							}
-						}}
-						isDisabled={createMutation.isPending}
-					>
-						<Label>Server Type *</Label>
-						{serverTypes.server_types.map((st) => {
-							const serverTypeLabel = `${st.name} - ${st.description} (${st.cores} cores, ${st.memory / 1024}GB RAM, ${st.disk}GB disk)`;
-							return (
-								<Option key={st.name}>
-									{serverTypeLabel}
-								</Option>
-							);
-						})}
-					</Select>
+					<>
+						<TextField
+							value={formData.server_type ? serverTypes.server_types.find(st => st.name === formData.server_type) 
+								? `${formData.server_type} - ${serverTypes.server_types.find(st => st.name === formData.server_type)!.description} (${serverTypes.server_types.find(st => st.name === formData.server_type)!.cores} cores, ${serverTypes.server_types.find(st => st.name === formData.server_type)!.memory / 1024}GB RAM, ${serverTypes.server_types.find(st => st.name === formData.server_type)!.disk}GB disk)`
+								: formData.server_type
+								: ""}
+							onChange={() => {}}
+							placeholder="Select a server type below"
+							isReadOnly
+							isDisabled={createMutation.isPending}
+						/>
+						<FieldDescription>
+							Click on a server type below to select it.
+						</FieldDescription>
+						<Content>
+							{serverTypes.server_types.map((st) => {
+								const serverTypeLabel = `${st.name} - ${st.description} (${st.cores} cores, ${st.memory / 1024}GB RAM, ${st.disk}GB disk)`;
+								const isSelected = formData.server_type === st.name;
+								return (
+									<Button
+										key={st.name}
+										variant={isSelected ? "solid" : "outline"}
+										onPress={() => {
+											setFormData({ 
+												...formData, 
+												server_type: st.name,
+												image: "", // Reset image when server type changes
+											});
+											setError(null);
+										}}
+										isDisabled={createMutation.isPending}
+									>
+										{serverTypeLabel}
+									</Button>
+								);
+							})}
+						</Content>
+					</>
 				) : (
 					<>
-						<Label>Server Type *</Label>
 						<TextField
-							value={formData.server_type}
-							onChange={(value) => {
-								setFormData({ ...formData, server_type: value });
-								setError(null);
-							}}
+							value=""
+							onChange={() => {}}
 							placeholder="Loading server types..."
 							isDisabled={true}
 						/>
@@ -480,53 +342,53 @@ function CreateServerComponent() {
 			</Section>
 
 			<Section>
+				<Label>Image *</Label>
 				{images && compatibleImages.length > 0 ? (
 					<>
-						<Select
-							selectedKey={formData.image || undefined}
-							onSelectionChange={(selectedKey) => {
-								if (selectedKey !== null && selectedKey !== undefined) {
-									// Flow's Select returns the key of the Option, which is the image ID
-									const imageId = String(selectedKey);
-									setFormData({ ...formData, image: imageId });
-									setError(null);
-								}
-							}}
-							isDisabled={createMutation.isPending || !isValidServerTypeName || compatibleImages.length === 0}
-						>
-							<Label>Image *</Label>
+						<TextField
+							value={formData.image ? compatibleImages.find(img => String(img.id) === formData.image)
+								? compatibleImages.find(img => String(img.id) === formData.image)!.name 
+									? `${compatibleImages.find(img => String(img.id) === formData.image)!.name} (${compatibleImages.find(img => String(img.id) === formData.image)!.os_flavor} ${compatibleImages.find(img => String(img.id) === formData.image)!.os_version})`
+									: `${compatibleImages.find(img => String(img.id) === formData.image)!.os_flavor} ${compatibleImages.find(img => String(img.id) === formData.image)!.os_version} (ID: ${compatibleImages.find(img => String(img.id) === formData.image)!.id})`
+								: formData.image
+								: ""}
+							onChange={() => {}}
+							placeholder={formData.server_type ? "Select an image below" : "Please select a server type first"}
+							isReadOnly
+							isDisabled={createMutation.isPending || !formData.server_type}
+						/>
+						<FieldDescription>
+							Click on an image below to select it.
+						</FieldDescription>
+						{formData.server_type && compatibleImages.length < images.images.length && (
+							<FieldDescription>
+								Showing {compatibleImages.length} of {images.images.length} images compatible with {formData.server_type} ({getServerTypeArchitecture(formData.server_type).toUpperCase()} architecture).
+							</FieldDescription>
+						)}
+						<Content>
 							{compatibleImages.map((img) => {
-								// Use ID as key to ensure uniqueness (multiple images can have the same name)
-								const imageKey = String(img.id);
 								const imageLabel = img.name 
 									? `${img.name} (${img.os_flavor} ${img.os_version})`
 									: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
+								const isSelected = formData.image === String(img.id);
 								return (
-									<Option key={imageKey}>
+									<Button
+										key={String(img.id)}
+										variant={isSelected ? "solid" : "outline"}
+										onPress={() => {
+											setFormData({ ...formData, image: String(img.id) });
+											setError(null);
+										}}
+										isDisabled={createMutation.isPending || !formData.server_type}
+									>
 										{imageLabel}
-									</Option>
+									</Button>
 								);
 							})}
-						</Select>
-						{formData.server_type && compatibleImages.length < images.images.length && (
-							<FieldDescription>
-								Showing {compatibleImages.length} of {images.images.length} images compatible with {(() => {
-									const serverTypeName = formData.server_type.includes(" - ")
-										? formData.server_type.split(" - ")[0]
-										: formData.server_type;
-									return serverTypeName;
-								})()} ({(() => {
-									const serverTypeName = formData.server_type.includes(" - ")
-										? formData.server_type.split(" - ")[0]
-										: formData.server_type;
-									return getServerTypeArchitecture(serverTypeName).toUpperCase();
-								})()} architecture).
-							</FieldDescription>
-						)}
+						</Content>
 					</>
 				) : images && images.images.length > 0 && formData.server_type ? (
 					<>
-						<Label>Image *</Label>
 						<TextField
 							value=""
 							onChange={() => {}}
@@ -540,74 +402,63 @@ function CreateServerComponent() {
 							</Text>
 						</Alert>
 					</>
-				) : images && images.images.length > 0 ? (
-					<>
-						<Label>Image *</Label>
-						<TextField
-							value={formData.image}
-							onChange={(value) => {
-								setFormData({ ...formData, image: value });
-								setError(null);
-							}}
-							placeholder="Please select a server type first"
-							isDisabled={true}
-						/>
-						<FieldDescription>
-							Please select a server type first to see compatible images.
-						</FieldDescription>
-					</>
 				) : (
 					<>
-						<Label>Image *</Label>
 						<TextField
-							value={formData.image}
-							onChange={(value) => {
-								setFormData({ ...formData, image: value });
-								setError(null);
-							}}
-							placeholder="Loading images..."
+							value=""
+							onChange={() => {}}
+							placeholder={formData.server_type ? "Loading images..." : "Please select a server type first"}
 							isDisabled={true}
 						/>
 						<FieldDescription>
-							No images available. Please check your API token configuration.
+							{formData.server_type ? "No images available. Please check your API token configuration." : "Please select a server type first to see compatible images."}
 						</FieldDescription>
 					</>
 				)}
 			</Section>
 
 			<Section>
+				<Label>Location *</Label>
 				{locations && locations.locations.length > 0 ? (
-					<Select
-						selectedKey={formData.location || undefined}
-						onSelectionChange={(selectedKey) => {
-							if (selectedKey) {
-								// Flow's Select returns the key of the Option, which is the location name
-								const locationName = String(selectedKey);
-								setFormData({ ...formData, location: locationName });
-								setError(null);
-							}
-						}}
-						isDisabled={createMutation.isPending}
-					>
-						<Label>Location *</Label>
-						{locations.locations.map((loc) => {
-							const locationLabel = `${loc.name} - ${loc.city}, ${loc.country}`;
-							return (
-								<Option key={loc.name}>
-									{locationLabel}
-								</Option>
-							);
-						})}
-					</Select>
+					<>
+						<TextField
+							value={formData.location ? locations.locations.find(loc => loc.name === formData.location)
+								? `${formData.location} - ${locations.locations.find(loc => loc.name === formData.location)!.city}, ${locations.locations.find(loc => loc.name === formData.location)!.country}`
+								: formData.location
+								: ""}
+							onChange={() => {}}
+							placeholder="Select a location below"
+							isReadOnly
+							isDisabled={createMutation.isPending}
+						/>
+						<FieldDescription>
+							Click on a location below to select it.
+						</FieldDescription>
+						<Content>
+							{locations.locations.map((loc) => {
+								const locationLabel = `${loc.name} - ${loc.city}, ${loc.country}`;
+								const isSelected = formData.location === loc.name;
+								return (
+									<Button
+										key={loc.name}
+										variant={isSelected ? "solid" : "outline"}
+										onPress={() => {
+											setFormData({ ...formData, location: loc.name });
+											setError(null);
+										}}
+										isDisabled={createMutation.isPending}
+									>
+										{locationLabel}
+									</Button>
+								);
+							})}
+						</Content>
+					</>
 				) : (
 					<>
-						<Label>Location *</Label>
 						<TextField
-							value={formData.location}
-							onChange={(value) => {
-								setFormData({ ...formData, location: value });
-								setError(null);
-							}}
+							value=""
+							onChange={() => {}}
 							placeholder="Loading locations..."
 							isDisabled={true}
 						/>
@@ -636,4 +487,3 @@ function CreateServerComponent() {
 		</Content>
 	);
 }
-
