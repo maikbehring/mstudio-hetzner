@@ -483,45 +483,13 @@ function CreateServerComponent() {
 				{images && compatibleImages.length > 0 ? (
 					<>
 						<Select
-							selectedKey={(() => {
-								// Find the image label that matches the stored image ID
-								if (!formData.image) return undefined;
-								const imageId = parseInt(formData.image, 10);
-								if (isNaN(imageId)) return undefined;
-								const matchingImage = compatibleImages.find(img => img.id === imageId);
-								if (matchingImage) {
-									return matchingImage.name 
-										? `${matchingImage.name} (${matchingImage.os_flavor} ${matchingImage.os_version})`
-										: `${matchingImage.os_flavor} ${matchingImage.os_version} (ID: ${matchingImage.id})`;
-								}
-								return undefined;
-							})()}
+							selectedKey={formData.image || undefined}
 							onSelectionChange={(selectedKey) => {
 								if (selectedKey !== null && selectedKey !== undefined) {
-									// Flow's Select returns the label text, not the key
-									// We need to find the image that matches the label
-									const selectedLabel = String(selectedKey);
-									const matchingImage = compatibleImages.find((img) => {
-										const imageLabel = img.name 
-											? `${img.name} (${img.os_flavor} ${img.os_version})`
-											: `${img.os_flavor} ${img.os_version} (ID: ${img.id})`;
-										return imageLabel === selectedLabel;
-									});
-									
-									if (matchingImage) {
-										setFormData({ ...formData, image: String(matchingImage.id) });
-										setError(null);
-									} else {
-										// Fallback: try to parse as ID if it's numeric
-										const numericId = parseInt(selectedLabel, 10);
-										if (!isNaN(numericId) && compatibleImages.some(img => img.id === numericId)) {
-											setFormData({ ...formData, image: String(numericId) });
-											setError(null);
-										} else {
-											console.error("[CreateServer] Could not find image for selected label:", selectedLabel);
-											setError("Invalid image selection");
-										}
-									}
+									// Flow's Select returns the key of the Option, which is the image ID
+									const imageId = String(selectedKey);
+									setFormData({ ...formData, image: imageId });
+									setError(null);
 								}
 							}}
 							isDisabled={createMutation.isPending || !isValidServerTypeName || compatibleImages.length === 0}
@@ -610,35 +578,65 @@ function CreateServerComponent() {
 			<Section>
 				{locations && locations.locations.length > 0 ? (
 					<Select
-						selectedKey={(() => {
-							// Find the location label that matches the stored location name
-							if (!formData.location) return undefined;
-							const matchingLocation = locations.locations.find(loc => loc.name === formData.location);
-							if (matchingLocation) {
-								return `${matchingLocation.name} - ${matchingLocation.city}, ${matchingLocation.country}`;
-							}
-							return undefined;
-						})()}
+						selectedKey={formData.location || undefined}
 						onSelectionChange={(selectedKey) => {
 							if (selectedKey) {
-								// Flow's Select returns the label text, not the key
-								// Extract location name from label (format: "fsn1 - Falkenstein, DE")
-								const selectedLabel = String(selectedKey);
-								let locationName: string;
-								
-								if (selectedLabel.includes(" - ")) {
-									// It's a label, extract the name (part before " - ")
-									locationName = selectedLabel.split(" - ")[0];
-								} else {
-									// It's already the name
-									locationName = selectedLabel;
-								}
-								
-								// Verify it's a valid location name
-								if (locations.locations.some(loc => loc.name === locationName)) {
-									setFormData({ ...formData, location: locationName });
-									setError(null);
-								} else {
+								// Flow's Select returns the key of the Option, which is the location name
+								const locationName = String(selectedKey);
+								setFormData({ ...formData, location: locationName });
+								setError(null);
+							}
+						}}
+						isDisabled={createMutation.isPending}
+					>
+						<Label>Location *</Label>
+						{locations.locations.map((loc) => {
+							const locationLabel = `${loc.name} - ${loc.city}, ${loc.country}`;
+							return (
+								<Option key={loc.name}>
+									{locationLabel}
+								</Option>
+							);
+						})}
+					</Select>
+				) : (
+					<>
+						<Label>Location *</Label>
+						<TextField
+							value={formData.location}
+							onChange={(value) => {
+								setFormData({ ...formData, location: value });
+								setError(null);
+							}}
+							placeholder="Loading locations..."
+							isDisabled={true}
+						/>
+						<FieldDescription>
+							No locations available. Please check your API token configuration.
+						</FieldDescription>
+					</>
+				)}
+			</Section>
+
+			<ActionGroup>
+				<Button
+					onPress={handleSubmit}
+					isDisabled={createMutation.isPending || !formData.name || !formData.server_type || !formData.image || !formData.location}
+				>
+					{createMutation.isPending ? "Creating..." : "Create Server"}
+				</Button>
+				<Button
+					variant="outline"
+					onPress={() => router.navigate({ to: "/" })}
+					isDisabled={createMutation.isPending}
+				>
+					Cancel
+				</Button>
+			</ActionGroup>
+		</Content>
+	);
+}
+
 									console.error("[CreateServer] Invalid location name:", locationName);
 									setError("Invalid location selection");
 								}
