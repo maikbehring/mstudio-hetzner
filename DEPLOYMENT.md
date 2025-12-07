@@ -132,6 +132,146 @@ Die `DATABASE_URL` wird automatisch als Environment Variable gesetzt.
 **Beide Optionen:**
 - Die App ist unter `https://mstudio-hetzner.onrender.com` verfügbar (oder deiner benutzerdefinierten Domain)
 
+## Custom Domain hinzufügen
+
+Render.com unterstützt Custom Domains mit automatischem SSL/TLS. So fügst du eine Domain hinzu:
+
+### Schritt 1: Domain in Render hinzufügen
+
+1. Gehe zu deinem Web Service in der Render-UI
+2. Klicke auf den Tab **"Settings"**
+3. Scrolle runter zum Abschnitt **"Custom Domains"**
+4. Klicke auf **"Add Custom Domain"**
+5. Gib deine Domain ein (z.B. `app.example.com` oder `example.com`)
+6. Klicke auf **"Save"**
+
+### Schritt 2: DNS-Konfiguration
+
+Render zeigt dir die benötigten DNS-Einträge an. Du musst diese bei deinem DNS-Provider konfigurieren:
+
+#### Option A: CNAME (empfohlen für Subdomains)
+
+Für Subdomains wie `app.example.com`:
+
+```
+Type: CNAME
+Name: app (oder deine Subdomain)
+Value: dein-service.onrender.com
+TTL: 3600 (oder Standard)
+```
+
+**Beispiel:**
+- Domain: `app.example.com`
+- CNAME: `app` → `mstudio-hetzner.onrender.com`
+
+#### Option B: A Record (für Root Domain)
+
+Für Root Domains wie `example.com`:
+
+```
+Type: A
+Name: @ (oder leer lassen)
+Value: [Render IP-Adresse] (wird von Render angezeigt)
+TTL: 3600 (oder Standard)
+```
+
+**Hinweis:** Render zeigt dir die IP-Adresse in der UI an, wenn du eine Root Domain hinzufügst.
+
+#### Option C: ALIAS/ANAME (wenn unterstützt)
+
+Einige DNS-Provider unterstützen ALIAS/ANAME Records für Root Domains:
+
+```
+Type: ALIAS (oder ANAME)
+Name: @
+Value: dein-service.onrender.com
+TTL: 3600
+```
+
+### Schritt 3: SSL/TLS Zertifikat
+
+Render verwaltet SSL/TLS automatisch:
+
+1. Nach der DNS-Konfiguration wartest du, bis die DNS-Einträge propagiert sind (kann 5 Minuten bis 48 Stunden dauern)
+2. Render erkennt automatisch, wenn die DNS-Einträge korrekt sind
+3. Render stellt automatisch ein SSL-Zertifikat aus (Let's Encrypt)
+4. Die Domain ist dann über HTTPS verfügbar
+
+**Status prüfen:**
+- In der Render-UI unter "Custom Domains" siehst du den Status:
+  - 🟡 **Pending** - DNS-Einträge werden noch propagiert
+  - 🟢 **Active** - Domain ist aktiv und SSL-Zertifikat ist installiert
+  - 🔴 **Failed** - DNS-Konfiguration ist fehlerhaft
+
+### Schritt 4: Domain-Verifizierung
+
+Render verifiziert automatisch:
+- DNS-Einträge sind korrekt konfiguriert
+- Domain zeigt auf den richtigen Service
+- SSL-Zertifikat kann ausgestellt werden
+
+**Troubleshooting:**
+
+- **DNS-Einträge prüfen:**
+  ```bash
+  # CNAME prüfen
+  dig app.example.com CNAME
+  
+  # A Record prüfen
+  dig example.com A
+  
+  # Oder online: https://dnschecker.org/
+  ```
+
+- **Propagierung abwarten:** DNS-Änderungen können bis zu 48 Stunden dauern (meistens 5-30 Minuten)
+
+- **TTL reduzieren:** Wenn du häufig testest, setze einen niedrigeren TTL-Wert (z.B. 300 Sekunden)
+
+### Beispiel: Domain für dieses Projekt
+
+Wenn du `hetzner.example.com` hinzufügen möchtest:
+
+1. **In Render:**
+   - Custom Domain: `hetzner.example.com`
+   - Render zeigt: `mstudio-hetzner.onrender.com`
+
+2. **Bei deinem DNS-Provider (z.B. Cloudflare, Namecheap, etc.):**
+   ```
+   Type: CNAME
+   Name: hetzner
+   Value: mstudio-hetzner.onrender.com
+   TTL: 3600
+   ```
+
+3. **Warten:** 5-30 Minuten (manchmal länger)
+
+4. **Prüfen:** `https://hetzner.example.com` sollte funktionieren
+
+### Wichtige Hinweise
+
+- ✅ **HTTPS ist automatisch aktiviert** - Render verwaltet SSL-Zertifikate automatisch
+- ✅ **Mehrere Domains möglich** - Du kannst mehrere Custom Domains hinzufügen
+- ✅ **Wildcard-Domains** - Werden unterstützt (z.B. `*.example.com`)
+- ⚠️ **Root Domain** - Für `example.com` (ohne Subdomain) benötigst du A Records oder ALIAS
+- ⚠️ **DNS-Propagierung** - Kann bis zu 48 Stunden dauern (meistens schneller)
+- ⚠️ **Free Plan** - Custom Domains sind verfügbar, aber der Service kann nach Inaktivität schlafen gehen
+
+### Domain in render.yaml (optional)
+
+Du kannst Domains auch in der `render.yaml` definieren, aber die manuelle Konfiguration über die UI ist einfacher:
+
+```yaml
+services:
+  - type: web
+    name: mstudio-hetzner
+    # ... andere Konfiguration ...
+    domains:
+      - hetzner.example.com
+      - www.hetzner.example.com
+```
+
+**Hinweis:** Die `domains`-Option in `render.yaml` ist optional. Die manuelle Konfiguration über die UI gibt dir mehr Kontrolle und bessere Fehlermeldungen.
+
 ## render.yaml Konfiguration
 
 Die vollständige `render.yaml` für dieses Projekt:
@@ -248,6 +388,7 @@ Wenn du einen Fehler wie "Port already in use" oder "EADDRINUSE" siehst:
 - [TanStack Start Dokumentation](https://tanstack.com/router/latest/docs/framework/react/start/overview)
 - [Vite Dokumentation](https://vitejs.dev/)
 - [Prisma Deployment Guide](https://www.prisma.io/docs/guides/deployment)
+
 
 
 
