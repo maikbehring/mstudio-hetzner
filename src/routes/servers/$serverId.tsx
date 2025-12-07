@@ -5,7 +5,6 @@ import {
 	Content,
 	Badge,
 	Alert,
-	TextField,
 	Action,
 	Modal,
 	ActionGroup,
@@ -13,12 +12,15 @@ import {
 	LabeledValue,
 	Label,
 	CopyButton,
+	CartesianChart,
+	Line,
+	Area,
 } from "@mittwald/flow-remote-react-components";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { getHetznerServer } from "~/server/functions/hetzner/getServer";
+import { getServerMetrics } from "~/server/functions/hetzner/getServerMetrics";
 import { performServerAction } from "~/server/functions/hetzner/serverActions";
-import { createResourceNote } from "~/server/functions/hetzner/resourceNotes";
 import { deleteServer } from "~/server/functions/hetzner/deleteServer";
 import { resetRootPassword } from "~/server/functions/hetzner/resetRootPassword";
 import { Loader } from "~/components/Loader";
@@ -33,7 +35,6 @@ function ServerDetailComponent() {
 	const { serverId } = Route.useParams();
 	const router = useRouter();
 	const queryClient = useQueryClient();
-	const [noteText, setNoteText] = useState("");
 	const [rootPassword, setRootPassword] = useState<string | null>(null);
 
 	const {
@@ -46,6 +47,28 @@ function ServerDetailComponent() {
 		queryFn: () => (getHetznerServer as any)({ data: { serverId } }),
 	});
 
+	// Get metrics for the last 24 hours
+	const endDate = new Date();
+	const startDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+	const {
+		data: metricsData,
+		isLoading: metricsLoading,
+		error: metricsError,
+	} = useQuery({
+		queryKey: ["hetznerServerMetrics", serverId, startDate.toISOString(), endDate.toISOString()],
+		queryFn: () => (getServerMetrics as any)({
+			data: {
+				serverId,
+				type: "cpu,disk,network",
+				start: startDate.toISOString(),
+				end: endDate.toISOString(),
+			},
+		}),
+		enabled: !!data?.server && data.server.status === "running",
+		refetchInterval: 60000, // Refetch every minute
+	});
+
 	const serverActionMutation = useMutation({
 		mutationFn: async (action: "poweron" | "poweroff" | "reboot" | "shutdown") => {
 			await (performServerAction as any)({ data: { serverId, action } });
@@ -55,20 +78,6 @@ function ServerDetailComponent() {
 			setTimeout(() => {
 				refetch();
 			}, 2000);
-		},
-	});
-
-	const createNoteMutation = useMutation({
-		mutationFn: async (note: string) => {
-			await (createResourceNote as any)({
-				resourceType: "server",
-				resourceId: serverId,
-				note,
-			});
-		},
-		onSuccess: () => {
-			setNoteText("");
-			refetch();
 		},
 	});
 
@@ -124,7 +133,7 @@ function ServerDetailComponent() {
 		);
 	}
 
-	const { server, assignment, notes } = data;
+	const { server, assignment } = data;
 
 
 	const canPerformActions = server.status === "running" || server.status === "off";
@@ -188,6 +197,87 @@ function ServerDetailComponent() {
 							</LabeledValue>
 						)}
 					</Content>
+				</Section>
+			)}
+
+			{server.status === "running" && (
+				<Section>
+					<Heading level={3}>Server Auslastung</Heading>
+					{metricsLoading && <Loader />}
+					{metricsError && (
+						<Alert status="warning">
+							<Text>Metriken konnten nicht geladen werden.</Text>
+						</Alert>
+					)}
+					{metricsData?.metrics && (
+						<Content>
+							{metricsData.metrics.cpu && (
+								<Section>
+									<Heading level={4}>CPU Auslastung</Heading>
+									<CartesianChart
+										height="200"
+										data={metricsData.metrics.cpu.values.map(([timestamp, value]: [number, number | string]) => ({
+											time: new Date(timestamp * 1000),
+											cpu: typeof value === "string" ? parseFloat(value) : value,
+										}))}
+									>
+										<Area dataKey="cpu" color="blue" />
+										<Line dataKey="cpu" color="blue" />
+									</CartesianChart>
+								</Section>
+							)}
+							{(metricsData.metrics["disk.0.iops.read"] || metricsData.metrics["disk.0.iops.write"]) && (
+								<Section>
+									<Heading level={4}>Disk IOPS</Heading>
+									<CartesianChart
+										height="200"
+										data={(() => {
+											const readData = metricsData.metrics["disk.0.iops.read"]?.values || [];
+											const writeData = metricsData.metrics["disk.0.iops.write"]?.values || [];
+											const maxLength = Math.max(readData.length, writeData.length);
+											return Array.from({ length: maxLength }, (_, i) => {
+												const read = readData[i] as [number, number | string] | undefined;
+												const write = writeData[i] as [number, number | string] | undefined;
+												return {
+													time: read ? new Date(read[0] * 1000) : write ? new Date(write[0] * 1000) : new Date(),
+													read: read ? (typeof read[1] === "string" ? parseFloat(read[1]) : read[1]) : 0,
+													write: write ? (typeof write[1] === "string" ? parseFloat(write[1]) : write[1]) : 0,
+												};
+											});
+										})()}
+									>
+										<Area dataKey="read" color="green" />
+										<Area dataKey="write" color="orange" />
+									</CartesianChart>
+								</Section>
+							)}
+							{(metricsData.metrics["network.0.bandwidth.in"] || metricsData.metrics["network.0.bandwidth.out"]) && (
+								<Section>
+									<Heading level={4}>Network Bandwidth</Heading>
+									<CartesianChart
+										height="200"
+										data={(() => {
+											const inData = metricsData.metrics["network.0.bandwidth.in"]?.values || [];
+											const outData = metricsData.metrics["network.0.bandwidth.out"]?.values || [];
+											const maxLength = Math.max(inData.length, outData.length);
+											return Array.from({ length: maxLength }, (_, i) => {
+												const inVal = inData[i] as [number, number | string] | undefined;
+												const outVal = outData[i] as [number, number | string] | undefined;
+												return {
+													time: inVal ? new Date(inVal[0] * 1000) : outVal ? new Date(outVal[0] * 1000) : new Date(),
+													in: inVal ? (typeof inVal[1] === "string" ? parseFloat(inVal[1]) : inVal[1]) : 0,
+													out: outVal ? (typeof outVal[1] === "string" ? parseFloat(outVal[1]) : outVal[1]) : 0,
+												};
+											});
+										})()}
+									>
+										<Area dataKey="in" color="blue" />
+										<Area dataKey="out" color="purple" />
+									</CartesianChart>
+								</Section>
+							)}
+						</Content>
+					)}
 				</Section>
 			)}
 
@@ -440,39 +530,6 @@ function ServerDetailComponent() {
 					</Content>
 				</Section>
 			)}
-
-			<Section>
-				<Heading level={3}>Notes</Heading>
-				{notes && notes.length > 0 && (
-					<Content>
-						{notes.map((note: { id: string; note: string; createdAt: Date; createdBy: string | null }) => (
-							<Section key={note.id}>
-								<Text>{note.note}</Text>
-								<Text>
-									{new Date(note.createdAt).toLocaleString()}
-									{note.createdBy && ` by ${note.createdBy}`}
-								</Text>
-							</Section>
-						))}
-					</Content>
-				)}
-				<Section>
-					<Label>Add Note</Label>
-					<TextField
-						value={noteText}
-						onChange={(value) => setNoteText(value)}
-						placeholder="Enter a note about this server"
-					/>
-					<ActionGroup>
-						<Button
-							onPress={() => createNoteMutation.mutate(noteText)}
-							isDisabled={!noteText.trim() || createNoteMutation.isPending}
-						>
-							{createNoteMutation.isPending ? "Adding..." : "Add Note"}
-						</Button>
-					</ActionGroup>
-				</Section>
-			</Section>
 
 			<Section>
 				<ActionGroup>

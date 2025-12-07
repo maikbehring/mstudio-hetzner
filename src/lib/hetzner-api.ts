@@ -354,6 +354,25 @@ const LocationsResponseSchema = z.object({
 	locations: z.array(LocationSchema),
 });
 
+// Metrics schemas
+const MetricsTimeSeriesSchema = z.object({
+	values: z.array(z.tuple([z.number(), z.union([z.number(), z.string()])])),
+});
+
+const ServerMetricsResponseSchema = z.object({
+	metrics: z.object({
+		cpu: MetricsTimeSeriesSchema.optional(),
+		"disk.0.iops.read": MetricsTimeSeriesSchema.optional(),
+		"disk.0.iops.write": MetricsTimeSeriesSchema.optional(),
+		"disk.0.bandwidth.read": MetricsTimeSeriesSchema.optional(),
+		"disk.0.bandwidth.write": MetricsTimeSeriesSchema.optional(),
+		"network.0.pps.in": MetricsTimeSeriesSchema.optional(),
+		"network.0.pps.out": MetricsTimeSeriesSchema.optional(),
+		"network.0.bandwidth.in": MetricsTimeSeriesSchema.optional(),
+		"network.0.bandwidth.out": MetricsTimeSeriesSchema.optional(),
+	}),
+});
+
 const CreateServerRequestSchema = z.object({
 	name: z.string(),
 	server_type: z.string(),
@@ -518,6 +537,27 @@ export class HetznerApiClient {
 	async createServer(params: CreateServerRequest): Promise<CreateServerResponse> {
 		const data = await this.request<unknown>("POST", "/servers", params);
 		return CreateServerResponseSchema.parse(data);
+	}
+
+	async getServerMetrics(
+		serverId: number,
+		params: {
+			type: "cpu" | "disk" | "network" | "cpu,disk" | "cpu,network" | "disk,network" | "cpu,disk,network";
+			start: string; // ISO-8601 format
+			end: string; // ISO-8601 format
+			step?: string; // Resolution in seconds
+		},
+	): Promise<z.infer<typeof ServerMetricsResponseSchema>> {
+		const queryParams = new URLSearchParams({
+			type: params.type,
+			start: params.start,
+			end: params.end,
+		});
+		if (params.step) {
+			queryParams.append("step", params.step);
+		}
+		const data = await this.request<unknown>("GET", `/servers/${serverId}/metrics?${queryParams.toString()}`);
+		return ServerMetricsResponseSchema.parse(data);
 	}
 }
 
