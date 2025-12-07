@@ -25,7 +25,7 @@ import { deleteServer } from "~/server/functions/hetzner/deleteServer";
 import { resetRootPassword } from "~/server/functions/hetzner/resetRootPassword";
 import { Loader } from "~/components/Loader";
 import { ErrorMessage } from "~/components/ErrorMessage";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 export const Route = createFileRoute("/servers/$serverId")({
 	component: ServerDetailComponent,
