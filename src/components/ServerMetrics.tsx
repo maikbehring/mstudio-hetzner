@@ -11,7 +11,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { getServerMetrics } from "~/server/functions/hetzner/getServerMetrics";
 import { Loader } from "~/components/Loader";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 interface ServerMetricsProps {
 	serverId: string;
@@ -19,6 +19,16 @@ interface ServerMetricsProps {
 }
 
 export function ServerMetrics({ serverId, serverStatus }: ServerMetricsProps) {
+	const [isClient, setIsClient] = useState(false);
+
+	useEffect(() => {
+		setIsClient(true);
+	}, []);
+
+	// Don't render anything during SSR
+	if (!isClient) {
+		return null;
+	}
 	// Get metrics for the last 24 hours - only calculate client-side
 	const { startDate, endDate } = useMemo(() => {
 		const end = new Date();
