@@ -14,11 +14,17 @@ dist/
 .nitro/
 .tanstack/
 
+# Vite
+.vite/
+*.tsbuildinfo
+
 # IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
@@ -27,20 +33,40 @@ Thumbs.db
 # Logs
 *.log
 logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
 
 # Temporary files
 *.tmp
 *.temp
+.cache/
 
 # Database
 *.db
 *.sqlite
+*.sqlite3
 
 # Prisma
 prisma/migrations/.migrate
+
+# Biome
+.biome/
 
 # Developer Documentation (not for git)
 DEVELOPER.md
 SECURITY_AUDIT.md
 POST_REQUEST_FIX.md
 TANSTACK_START_MIGRATION.md
+
+# Generated API Documentation (can be regenerated/downloaded)
+mittwald_api_documentation.md
+HETZNER_CLOUD_API_COMPLETE.md
+hetzner_api_docs/
+flow_documentation.md
