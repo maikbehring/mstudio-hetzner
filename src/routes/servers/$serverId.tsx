@@ -52,31 +52,39 @@ function ServerDetailComponent() {
 		queryFn: () => (getHetznerServer as any)({ data: { serverId } }),
 	});
 
-	// Get metrics for the last 24 hours - use useMemo to avoid hydration issues
+	// Get metrics for the last 24 hours - only calculate client-side to avoid hydration issues
 	const { startDate, endDate } = useMemo(() => {
+		if (!isClient) {
+			return { startDate: null, endDate: null };
+		}
 		const end = new Date();
 		const start = new Date(Date.now() - 24 * 60 * 60 * 1000);
 		return {
 			startDate: start,
 			endDate: end,
 		};
-	}, []);
+	}, [isClient]);
 
 	const {
 		data: metricsData,
 		isLoading: metricsLoading,
 		error: metricsError,
 	} = useQuery({
-		queryKey: ["hetznerServerMetrics", serverId, startDate.toISOString(), endDate.toISOString()],
-		queryFn: () => (getServerMetrics as any)({
-			data: {
-				serverId,
-				type: "cpu,disk,network",
-				start: startDate.toISOString(),
-				end: endDate.toISOString(),
-			},
-		}),
-		enabled: !!data?.server && data.server.status === "running",
+		queryKey: ["hetznerServerMetrics", serverId, startDate?.toISOString(), endDate?.toISOString()],
+		queryFn: () => {
+			if (!startDate || !endDate) {
+				throw new Error("Dates not initialized");
+			}
+			return (getServerMetrics as any)({
+				data: {
+					serverId,
+					type: "cpu,disk,network",
+					start: startDate.toISOString(),
+					end: endDate.toISOString(),
+				},
+			});
+		},
+		enabled: isClient && !!startDate && !!endDate && !!data?.server && data.server.status === "running",
 		refetchInterval: 60000, // Refetch every minute
 	});
 
