@@ -25,7 +25,7 @@ import { deleteServer } from "~/server/functions/hetzner/deleteServer";
 import { resetRootPassword } from "~/server/functions/hetzner/resetRootPassword";
 import { Loader } from "~/components/Loader";
 import { ErrorMessage } from "~/components/ErrorMessage";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 export const Route = createFileRoute("/servers/$serverId")({
 	component: ServerDetailComponent,
@@ -36,6 +36,11 @@ function ServerDetailComponent() {
 	const router = useRouter();
 	const queryClient = useQueryClient();
 	const [rootPassword, setRootPassword] = useState<string | null>(null);
+	const [isClient, setIsClient] = useState(false);
+
+	useEffect(() => {
+		setIsClient(true);
+	}, []);
 
 	const {
 		data,
@@ -47,9 +52,15 @@ function ServerDetailComponent() {
 		queryFn: () => (getHetznerServer as any)({ data: { serverId } }),
 	});
 
-	// Get metrics for the last 24 hours
-	const endDate = new Date();
-	const startDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+	// Get metrics for the last 24 hours - use useMemo to avoid hydration issues
+	const { startDate, endDate } = useMemo(() => {
+		const end = new Date();
+		const start = new Date(Date.now() - 24 * 60 * 60 * 1000);
+		return {
+			startDate: start,
+			endDate: end,
+		};
+	}, []);
 
 	const {
 		data: metricsData,
@@ -200,7 +211,7 @@ function ServerDetailComponent() {
 				</Section>
 			)}
 
-			{server.status === "running" && (
+			{server.status === "running" && isClient && (
 				<Section>
 					<Heading level={3}>Server Auslastung</Heading>
 					{metricsLoading && <Loader />}
@@ -209,75 +220,86 @@ function ServerDetailComponent() {
 							<Text>Metriken konnten nicht geladen werden.</Text>
 						</Alert>
 					)}
-					{metricsData?.metrics && (
-						<Content>
-							{metricsData.metrics.cpu && (
-								<Section>
-									<Heading level={4}>CPU Auslastung</Heading>
-									<CartesianChart
-										height="200"
-										data={metricsData.metrics.cpu.values.map(([timestamp, value]: [number, number | string]) => ({
-											time: new Date(timestamp * 1000),
-											cpu: typeof value === "string" ? parseFloat(value) : value,
-										}))}
-									>
-										<Area dataKey="cpu" color="blue" />
-										<Line dataKey="cpu" color="blue" />
-									</CartesianChart>
-								</Section>
-							)}
-							{(metricsData.metrics["disk.0.iops.read"] || metricsData.metrics["disk.0.iops.write"]) && (
-								<Section>
-									<Heading level={4}>Disk IOPS</Heading>
-									<CartesianChart
-										height="200"
-										data={(() => {
-											const readData = metricsData.metrics["disk.0.iops.read"]?.values || [];
-											const writeData = metricsData.metrics["disk.0.iops.write"]?.values || [];
-											const maxLength = Math.max(readData.length, writeData.length);
-											return Array.from({ length: maxLength }, (_, i) => {
-												const read = readData[i] as [number, number | string] | undefined;
-												const write = writeData[i] as [number, number | string] | undefined;
-												return {
-													time: read ? new Date(read[0] * 1000) : write ? new Date(write[0] * 1000) : new Date(),
-													read: read ? (typeof read[1] === "string" ? parseFloat(read[1]) : read[1]) : 0,
-													write: write ? (typeof write[1] === "string" ? parseFloat(write[1]) : write[1]) : 0,
-												};
-											});
-										})()}
-									>
-										<Area dataKey="read" color="green" />
-										<Area dataKey="write" color="orange" />
-									</CartesianChart>
-								</Section>
-							)}
-							{(metricsData.metrics["network.0.bandwidth.in"] || metricsData.metrics["network.0.bandwidth.out"]) && (
-								<Section>
-									<Heading level={4}>Network Bandwidth</Heading>
-									<CartesianChart
-										height="200"
-										data={(() => {
-											const inData = metricsData.metrics["network.0.bandwidth.in"]?.values || [];
-											const outData = metricsData.metrics["network.0.bandwidth.out"]?.values || [];
-											const maxLength = Math.max(inData.length, outData.length);
-											return Array.from({ length: maxLength }, (_, i) => {
-												const inVal = inData[i] as [number, number | string] | undefined;
-												const outVal = outData[i] as [number, number | string] | undefined;
-												return {
-													time: inVal ? new Date(inVal[0] * 1000) : outVal ? new Date(outVal[0] * 1000) : new Date(),
-													in: inVal ? (typeof inVal[1] === "string" ? parseFloat(inVal[1]) : inVal[1]) : 0,
-													out: outVal ? (typeof outVal[1] === "string" ? parseFloat(outVal[1]) : outVal[1]) : 0,
-												};
-											});
-										})()}
-									>
-										<Area dataKey="in" color="blue" />
-										<Area dataKey="out" color="purple" />
-									</CartesianChart>
-								</Section>
-							)}
-						</Content>
-					)}
+					{metricsData?.metrics && (() => {
+						// Process metrics data in useMemo to avoid hydration issues
+						const cpuData = metricsData.metrics.cpu ? metricsData.metrics.cpu.values.map(([timestamp, value]: [number, number | string]) => ({
+							time: new Date(timestamp * 1000),
+							cpu: typeof value === "string" ? parseFloat(value) : value,
+						})) : [];
+
+						const diskData = (() => {
+							const readData = metricsData.metrics["disk.0.iops.read"]?.values || [];
+							const writeData = metricsData.metrics["disk.0.iops.write"]?.values || [];
+							if (readData.length === 0 && writeData.length === 0) return [];
+							const maxLength = Math.max(readData.length, writeData.length);
+							return Array.from({ length: maxLength }, (_, i) => {
+								const read = readData[i] as [number, number | string] | undefined;
+								const write = writeData[i] as [number, number | string] | undefined;
+								return {
+									time: read ? new Date(read[0] * 1000) : write ? new Date(write[0] * 1000) : new Date(0),
+									read: read ? (typeof read[1] === "string" ? parseFloat(read[1]) : read[1]) : 0,
+									write: write ? (typeof write[1] === "string" ? parseFloat(write[1]) : write[1]) : 0,
+								};
+							});
+						})();
+
+						const networkData = (() => {
+							const inData = metricsData.metrics["network.0.bandwidth.in"]?.values || [];
+							const outData = metricsData.metrics["network.0.bandwidth.out"]?.values || [];
+							if (inData.length === 0 && outData.length === 0) return [];
+							const maxLength = Math.max(inData.length, outData.length);
+							return Array.from({ length: maxLength }, (_, i) => {
+								const inVal = inData[i] as [number, number | string] | undefined;
+								const outVal = outData[i] as [number, number | string] | undefined;
+								return {
+									time: inVal ? new Date(inVal[0] * 1000) : outVal ? new Date(outVal[0] * 1000) : new Date(0),
+									in: inVal ? (typeof inVal[1] === "string" ? parseFloat(inVal[1]) : inVal[1]) : 0,
+									out: outVal ? (typeof outVal[1] === "string" ? parseFloat(outVal[1]) : outVal[1]) : 0,
+								};
+							});
+						})();
+
+						return (
+							<Content>
+								{cpuData.length > 0 && (
+									<Section>
+										<Heading level={4}>CPU Auslastung</Heading>
+										<CartesianChart
+											height="200"
+											data={cpuData}
+										>
+											<Area dataKey="cpu" color="blue" />
+											<Line dataKey="cpu" color="blue" />
+										</CartesianChart>
+									</Section>
+								)}
+								{diskData.length > 0 && (
+									<Section>
+										<Heading level={4}>Disk IOPS</Heading>
+										<CartesianChart
+											height="200"
+											data={diskData}
+										>
+											<Area dataKey="read" color="green" />
+											<Area dataKey="write" color="orange" />
+										</CartesianChart>
+									</Section>
+								)}
+								{networkData.length > 0 && (
+									<Section>
+										<Heading level={4}>Network Bandwidth</Heading>
+										<CartesianChart
+											height="200"
+											data={networkData}
+										>
+											<Area dataKey="in" color="blue" />
+											<Area dataKey="out" color="purple" />
+										</CartesianChart>
+									</Section>
+								)}
+							</Content>
+						);
+					})()}
 				</Section>
 			)}
 
