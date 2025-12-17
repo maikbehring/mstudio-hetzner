@@ -291,7 +291,11 @@ function CreateServerComponent() {
 					<>
 						<TextField
 							value={formData.server_type ? serverTypes.server_types.find(st => st.name === formData.server_type) 
-								? `${formData.server_type} - ${serverTypes.server_types.find(st => st.name === formData.server_type)!.description} (${serverTypes.server_types.find(st => st.name === formData.server_type)!.cores} cores, ${serverTypes.server_types.find(st => st.name === formData.server_type)!.memory / 1024}GB RAM, ${serverTypes.server_types.find(st => st.name === formData.server_type)!.disk}GB disk)`
+								? (() => {
+									const st = serverTypes.server_types.find(st => st.name === formData.server_type)!;
+									const price = st.prices.length > 0 ? `€${parseFloat(st.prices[0].price_monthly.gross).toFixed(2)}/month` : "";
+									return `${formData.server_type} - ${st.description} (${st.cores} cores, ${st.memory}GB RAM, ${st.disk}GB disk${price ? `, ${price}` : ""})`;
+								})()
 								: formData.server_type
 								: ""}
 							onChange={() => {}}
@@ -304,7 +308,8 @@ function CreateServerComponent() {
 						</FieldDescription>
 						<Content>
 							{serverTypes.server_types.map((st) => {
-								const serverTypeLabel = `${st.name} - ${st.description} (${st.cores} cores, ${st.memory / 1024}GB RAM, ${st.disk}GB disk)`;
+								const price = st.prices.length > 0 ? `€${parseFloat(st.prices[0].price_monthly.gross).toFixed(2)}/month` : "";
+								const serverTypeLabel = `${st.name} - ${st.description} (${st.cores} cores, ${st.memory}GB RAM, ${st.disk}GB disk${price ? `, ${price}` : ""})`;
 								const isSelected = formData.server_type === st.name;
 								return (
 									<Button

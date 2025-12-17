@@ -140,7 +140,7 @@ function ServerDetailComponent() {
 						<Label>Type</Label>
 						<Content>
 							{server.server_type.name} ({server.server_type.cores} cores,{" "}
-							{server.server_type.memory / 1024} GB RAM, {server.server_type.disk} GB disk)
+							{server.server_type.memory} GB RAM, {server.server_type.disk} GB disk)
 						</Content>
 					</LabeledValue>
 					<LabeledValue>

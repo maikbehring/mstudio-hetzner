@@ -25,11 +25,8 @@ export function ServerMetrics({ serverId, serverStatus }: ServerMetricsProps) {
 		setIsClient(true);
 	}, []);
 
-	// Don't render anything during SSR
-	if (!isClient) {
-		return null;
-	}
 	// Get metrics for the last 24 hours - only calculate client-side
+	// IMPORTANT: All hooks must be called before any conditional returns
 	const { startDate, endDate } = useMemo(() => {
 		const end = new Date();
 		const start = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -53,11 +50,12 @@ export function ServerMetrics({ serverId, serverStatus }: ServerMetricsProps) {
 				end: endDate.toISOString(),
 			},
 		}),
-		enabled: serverStatus === "running",
+		enabled: serverStatus === "running" && isClient,
 		refetchInterval: 60000, // Refetch every minute
 	});
 
-	if (serverStatus !== "running") {
+	// Don't render anything during SSR or if server is not running
+	if (!isClient || serverStatus !== "running") {
 		return null;
 	}
 
